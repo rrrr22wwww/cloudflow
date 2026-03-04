@@ -2,14 +2,17 @@ package main
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/rrrr22wwww.com/cloudflow/internal/domain"
 )
 
 func main() {
-	s, err := domain.NewProduct("1231", "1231", "ыыыыыыыыыыыыыыы", "chel", "200$", "2,3", []string{"asdasd", "adad"}, int64(123132), int64(12313132))
+
+	s, err := domain.NewProduct("Phone X", "Best gadget", "999", "4", []string{"tech", "new"}, time.Now().Unix(), time.Now().Unix(), uuid.New(), uuid.New())
 	if err != nil {
 		fmt.Print("err")
 	}
-	fmt.Printf("%v", s)
+	fmt.Printf("%v", s.CategoryID)
 }
