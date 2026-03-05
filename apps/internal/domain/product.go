@@ -38,7 +38,7 @@ const (
 	MaxDiscriptionLeght = 200
 )
 
-func NewProduct(name, discription, price, rating string, tags []string, CreateAt, EditAt int64, sellerid, ctgryID uuid.UUID) (*Product, error) {
+func NewProduct(name, discription, price, rating string, tags []string, sellerid, ctgryID uuid.UUID) (*Product, error) {
 	p, err := strconv.Atoi(price)
 	if err != nil {
 		return nil, ErrPriceValue
@@ -52,9 +52,12 @@ func NewProduct(name, discription, price, rating string, tags []string, CreateAt
 	if len([]rune(discription)) > MaxDiscriptionLeght {
 		return nil, ErrValueToLong
 	}
-	id := uuid.New()
+	id, err := uuid.NewV7()
+	if err != nil {
+		return nil, ErrGenUUID
+	}
 
-	return &Product{id, sellerid, ctgryID, name, discription, price, rating, tags, time.Duration(CreateAt), time.Duration(EditAt)}, nil
+	return &Product{id, sellerid, ctgryID, name, discription, price, rating, tags, time.Duration(time.Now().Unix()), time.Duration(time.Now().Unix())}, nil
 }
 
 func NewTag(slug, name string) (*Tag, error) {
@@ -64,7 +67,11 @@ func NewTag(slug, name string) (*Tag, error) {
 	if len(name) < 2 {
 		return nil, ErrNotCurrDataField
 	}
-	return &Tag{uuid.New(), slug, name}, nil
+	id, err := uuid.NewV7()
+	if err != nil {
+		return nil, ErrGenUUID
+	}
+	return &Tag{id, slug, name}, nil
 }
 
 func NewCotegory(name, slug string) (*Cotegory, error) {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/rrrr22wwww.com/cloudflow/internal/domain"
@@ -10,9 +9,14 @@ import (
 
 func main() {
 
-	s, err := domain.NewProduct("Phone X", "Best gadget", "999", "4", []string{"tech", "new"}, time.Now().Unix(), time.Now().Unix(), uuid.New(), uuid.New())
+	p, err := domain.NewProduct("Phone X", "Best gadget", "999", "4", []string{"tech", "new"}, uuid.New(), uuid.New())
 	if err != nil {
 		fmt.Print("err")
 	}
-	fmt.Printf("%v", s.CategoryID)
+	t, err := domain.NewTag("nameslug", "creator")
+	if err != nil {
+		fmt.Print("err")
+	}
+
+	fmt.Printf("%v \n %v", p.CategoryID, (*t).Name)
 }

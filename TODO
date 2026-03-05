@@ -1,0 +1,4 @@
+1) Create Struct DB(& method CRE)
+2) add framewrok gin and create TCP server
+3) add graphql and DB(postgres compose docker)
+4) add ORM mb chek analog Redies from yandex
