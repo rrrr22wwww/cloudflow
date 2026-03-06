@@ -8,27 +8,27 @@ import (
 
 type Orders struct {
 	ID          uuid.UUID
-	ByerID      uuid.UUID
+	BuyerID     uuid.UUID
 	SellerID    uuid.UUID
-	Satus       int32
+	Status      int32
 	TotalAmount int32
-	CreateAt    time.Duration
-	EditAt      time.Duration
+	CreatedAt   time.Time
+	EditedAt    time.Time
 }
 
 type Order_items struct {
 	ID              uuid.UUID
-	OrderID         string
-	ProductID       string
+	OrderID         uuid.UUID
+	ProductID       uuid.UUID
 	PriceAtPurchase int32
-	CreateAt        time.Duration
-	EditAt          time.Duration
+	CreatedAt       time.Time
+	EditedAt        time.Time
 }
 
-func NewOrder(ByerID, SellerID uuid.UUID, TotalAmount int32) (*Orders, error) {
+func NewOrder(BuyerID, SellerID uuid.UUID, TotalAmount int32) (*Orders, error) {
 	if TotalAmount < 0 {
 		return nil, ErrAmount
 	}
 	id, _ := uuid.NewV7()
-	return &Orders{id, ByerID, SellerID, 300, TotalAmount, time.Duration(time.Now().Unix()), time.Duration(time.Now().Unix())}, nil
+	return &Orders{id, BuyerID, SellerID, 300, TotalAmount, time.Now(), time.Now()}, nil
 }

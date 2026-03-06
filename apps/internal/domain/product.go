@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,76 +9,71 @@ import (
 type Product struct {
 	ID          uuid.UUID
 	SellerID    uuid.UUID
-	CategoryID  uuid.UUID
+	CategoryID  int32
 	Name        string
-	Discription string
-	Price       string
-	Rating      string
+	Description string
+	Price       int64
+	Rating      float64
 	Tags        []string
-	CreateAt    time.Duration
-	EditeAt     time.Duration
+	CreatedAt   time.Time
+	EditedAt    time.Time
 }
 
 type Tag struct {
-	ID   uuid.UUID
-	Slug string
-	Name string
+	ID        int32
+	Name      string
+	CreatedAt time.Time
 }
 
 type Cotegory struct {
-	ID       uuid.UUID
-	Name     string
-	Slug     string
-	ParentID uuid.UUID
+	ID        int32
+	Name      string
+	ParentID  *int32
+	CreatedAt time.Time
 }
 
 const (
-	MaxNameLenght       = 10
-	MaxDiscriptionLeght = 200
+	MIN_NAME_LENGTH     = 2
+	MAX_NAME_LENHTH     = 10
+	MAX_DESCRIPT_LENGTH = 200
 )
 
-func NewProduct(name, discription, price, rating string, tags []string, sellerid, ctgryID uuid.UUID) (*Product, error) {
-	p, err := strconv.Atoi(price)
-	if err != nil {
-		return nil, ErrPriceValue
-	}
-	if len([]rune(name)) > MaxNameLenght {
+func NewProduct(name, description string, tags []string, sellerid, ctgryID int32, rating float64, price int64, SellerID uuid.UUID) (*Product, error) {
+	if len([]rune(name)) > MAX_NAME_LENHTH || len([]rune(name)) < MIN_NAME_LENGTH {
 		return nil, ErrValueToLong
 	}
-	if p < 0 {
+	if price < 0 {
 		return nil, ErrPriceValue
 	}
-	if len([]rune(discription)) > MaxDiscriptionLeght {
+	if len([]rune(description)) > MAX_DESCRIPT_LENGTH {
 		return nil, ErrValueToLong
 	}
-	id, err := uuid.NewV7()
-	if err != nil {
-		return nil, ErrGenUUID
-	}
-
-	return &Product{id, sellerid, ctgryID, name, discription, price, rating, tags, time.Duration(time.Now().Unix()), time.Duration(time.Now().Unix())}, nil
+	return &Product{
+		SellerID:    SellerID,
+		CategoryID:  ctgryID,
+		Name:        name,
+		Description: description,
+		Price:       price,
+		Rating:      rating,
+		Tags:        tags,
+		CreatedAt:   time.Now(),
+		EditedAt:    time.Now(),
+	}, nil
 }
 
-func NewTag(slug, name string) (*Tag, error) {
-	if len(slug) < 0 {
+func NewTag(name string) (*Tag, error) {
+	if len(name) < MIN_NAME_LENGTH {
 		return nil, ErrNotCurrDataField
 	}
-	if len(name) < 2 {
-		return nil, ErrNotCurrDataField
-	}
-	id, err := uuid.NewV7()
-	if err != nil {
-		return nil, ErrGenUUID
-	}
-	return &Tag{id, slug, name}, nil
+
+	return &Tag{0, name, time.Now()}, nil
 }
 
-func NewCotegory(name, slug string) (*Cotegory, error) {
-	if len(slug) < 0 {
+func NewCotegory(name string, ParentID *int32) (*Cotegory, error) {
+
+	if len(name) < MIN_NAME_LENGTH {
 		return nil, ErrNotCurrDataField
 	}
-	if len(name) < 2 {
-		return nil, ErrNotCurrDataField
-	}
-	return &Cotegory{uuid.New(), name, slug, uuid.New()}, nil
+
+	return &Cotegory{0, name, ParentID, time.Now()}, nil
 }

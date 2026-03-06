@@ -9,4 +9,5 @@ var (
 	ErrNotCurrDataField = errors.New("Not current size field ")
 	ErrAmount           = errors.New("Not currect value amount")
 	ErrGenUUID          = errors.New("Error generation UUID")
+	ErrCurrentName      = errors.New("Name user not current")
 )
