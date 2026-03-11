@@ -2,3 +2,9 @@
 2) add framewrok gin and create TCP server
 3) add graphql and DB(postgres compose docker)
 4) add ORM mb chek analog Redies from yandex
+// go run github.com/pressly/goose/v3/cmd/goose@latest create categorie sql
+go run github.com/pressly/goose/v3/cmd/goose@latest -dir ./lib/migration/postgres postgres \
+  "host=localhost port=5432 user=root password=112233 dbname=cloudflowDB sslmode=disable" \
+  up
+# Удалить тип вручную
+docker exec -it postgres-db psql -U user -d mydb -c "DROP TYPE IF EXISTS user_role CASCADE;"

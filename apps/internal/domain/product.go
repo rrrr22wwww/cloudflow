@@ -25,7 +25,7 @@ type Tag struct {
 	CreatedAt time.Time
 }
 
-type Cotegory struct {
+type Category struct {
 	ID        int32
 	Name      string
 	ParentID  *int32

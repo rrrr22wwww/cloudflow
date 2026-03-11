@@ -7,13 +7,14 @@ import (
 )
 
 type Orders struct {
-	ID          uuid.UUID
-	BuyerID     uuid.UUID
-	SellerID    uuid.UUID
-	Status      int32
-	TotalAmount int32
-	CreatedAt   time.Time
-	EditedAt    time.Time
+	ID           uuid.UUID
+	BuyerID      uuid.UUID
+	SellerID     uuid.UUID
+	Select_order []uuid.UUID
+	Status       int32
+	TotalAmount  int32
+	CreatedAt    time.Time
+	EditedAt     time.Time
 }
 
 type Order_items struct {
