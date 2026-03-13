@@ -1,7 +1,7 @@
 -- +goose Up
 SELECT 'up SQL query';
 CREATE TABLE order_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     order_id UUID NOT NULL,
     price_at_purchase NUMERIC,
     seller_id UUID NOT NULL,

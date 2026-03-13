@@ -4,7 +4,7 @@ SELECT 'up SQL query';
 CREATE TYPE order_status AS ENUM ('pending', 'processing', 'shipped', 'delivered');
 
 CREATE TABLE orders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     buyer_id UUID,
     status order_status,
     total_amount NUMERIC,

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SqlDialectMappings">
+    <file url="file://$PROJECT_DIR$/lib/migration/initdata.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310200309_user.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310200401_user_session.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310200410_tag.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310200412_categorie.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310201130_product.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310201142_product_tag.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310201143_reviews.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310201150_order.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310201153_order_item.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260312232629_images.sql" dialect="PostgreSQL" />
+  </component>
+</project>

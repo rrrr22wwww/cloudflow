@@ -21,7 +21,7 @@ CREATE TABLE tags (
 );
 
 CREATE TABLE categories (
-    id INTEGER SERIAL PRIMARY KEY,
+    id  SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     parent_id INTEGER,
     FOREIGN KEY(parent_id) REFERENCES categories(id)
