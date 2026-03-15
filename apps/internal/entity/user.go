@@ -21,10 +21,11 @@ const (
 )
 
 func CreatUser(ID uuid.UUID, Name string, Role string, Rating float64, Balance int64, CreatedAt time.Time) (*User, error) {
-	if MAX_LENGHT_NAME > len(Name) || MIN_LENGHT_NAME < len(Name) {
+	if len(Name) > MAX_LENGHT_NAME || len(Name) < MIN_LENGHT_NAME {
 		return nil, ErrCurrentName
 	}
 	return &User{
+		ID:        ID,
 		Name:      Name,
 		Role:      Role,
 		Rating:    Rating,

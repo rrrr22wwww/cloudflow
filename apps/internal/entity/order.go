@@ -30,6 +30,18 @@ func NewOrder(BuyerID, SellerID uuid.UUID, TotalAmount int32) (*Orders, error) {
 	if TotalAmount < 0 {
 		return nil, ErrAmount
 	}
-	id, _ := uuid.NewV7()
-	return &Orders{id, BuyerID, SellerID, 300, TotalAmount, time.Now(), time.Now()}, nil
+	id, err := uuid.NewV7()
+	if err != nil {
+		return nil, ErrGenUUID
+	}
+	return &Orders{
+		ID:           id,
+		BuyerID:      BuyerID,
+		SellerID:     SellerID,
+		Select_order: nil,
+		Status:       300,
+		TotalAmount:  TotalAmount,
+		CreatedAt:    time.Now(),
+		EditedAt:     time.Now(),
+	}, nil
 }

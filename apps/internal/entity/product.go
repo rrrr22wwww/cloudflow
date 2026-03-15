@@ -69,11 +69,11 @@ func NewTag(name string) (*Tag, error) {
 	return &Tag{0, name, time.Now()}, nil
 }
 
-func NewCotegory(name string, ParentID *int32) (*Cotegory, error) {
+func NewCotegory(name string, ParentID *int32) (*Category, error) {
 
 	if len(name) < MIN_NAME_LENGTH {
 		return nil, ErrNotCurrDataField
 	}
 
-	return &Cotegory{0, name, ParentID, time.Now()}, nil
+	return &Category{0, name, ParentID, time.Now()}, nil
 }
