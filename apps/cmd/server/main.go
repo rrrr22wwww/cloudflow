@@ -20,7 +20,7 @@ type GENV struct {
 }
 
 func loadEnvFile() error {
-	f, err := os.Open("../.env.development")
+	f, err := os.Open("/Users/root1/Desktop/cloudflow/.env.development")
 	if err != nil {
 		return err
 	}
@@ -95,4 +95,8 @@ func main() {
 		}
 		fmt.Println(pos, name, dataType, nullable, def)
 	}
+}
+
+func loadConfig() {
+
 }

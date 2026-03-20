@@ -6,6 +6,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type Users struct{}
+
+type Order struct {
+	Buyers Users
+}
+
 type Orders struct {
 	ID           uuid.UUID
 	BuyerID      uuid.UUID
