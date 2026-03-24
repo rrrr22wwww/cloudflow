@@ -22,7 +22,6 @@ func Connect() (*sql.DB, error) {
 	)
 	// fmt.Print(dsn)
 	db, err := sql.Open("pgx", dsn)
-	defer db.Close()
 	if err != nil {
 		return nil, fmt.Errorf("sql.Open failed: %w", err)
 	}
@@ -31,26 +30,3 @@ func Connect() (*sql.DB, error) {
 	}
 	return db, nil
 }
-
-//		rows, err := db.Query(`
-//	    SELECT name
-//	    FROM users
-//
-// `)
-//
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	defer rows.Close()
-//	for rows.Next() {
-//		var pos int
-//		var name, dataType, nullable string
-//		var def *string
-//		if err := rows.Scan(&pos, &name, &dataType, &nullable, &def); err != nil {
-//			log.Fatal(err)
-//		}
-//		fmt.Println(pos, name, dataType, nullable, def)
-//	}
-// func main() {
-// 	connect()
-// }

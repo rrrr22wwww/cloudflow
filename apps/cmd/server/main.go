@@ -13,48 +13,29 @@ func main() {
 		panic(err)
 	}
 	defer db.Close()
-	rows, err := db.Query(`
-	    SELECT name
-	    FROM users
 
-`)
-	if err != nil {
+	stats := db.Stats()
+	fmt.Printf("OpenConnections: %d\n", stats.OpenConnections)
+	fmt.Printf("InUse: %d\n", stats.InUse)
+	fmt.Printf("Idle: %d\n", stats.Idle)
+	var version, dbname string
+	db.QueryRow("SELECT version(), current_database()").Scan(&version, &dbname)
+	fmt.Printf("Database: %s\n", dbname)
+	fmt.Printf("Version: %s\n", version)
+	// rows, err := db.Query(`
+	// 	    SELECT name
+	// 	    FROM users
 
-	}
-
-	fmt.Print(rows)
-
-	//		err := loadEnvFile()
-	//		if err != nil {
-	//			panic(err)
-	//		}
-	//		srcdata, err := initEnv()
-	//		if err != nil {
-	//			panic(err)
-	//		}
-	//		dsn := "postgres://" + srcdata.userDB + ":" + srcdata.passwordDB + "@localhost:" + srcdata.portDB + "/" + srcdata.nameDB + "?sslmode=disable"
-	//		db, err := sql.Open("pgx", dsn)
-	//		if err != nil {
-	//			log.Fatal(err)
-	//		}
-	//		defer db.Close()
-	//		rows, err := db.Query(`
-	//	    SELECT name
-	//	    FROM users
-	//
 	// `)
-	//
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	//	defer rows.Close()
-	//	for rows.Next() {
-	//		var pos int
-	//		var name, dataType, nullable string
-	//		var def *string
-	//		if err := rows.Scan(&pos, &name, &dataType, &nullable, &def); err != nil {
-	//			log.Fatal(err)
-	//		}
-	//		fmt.Println(pos, name, dataType, nullable, def)
-	//	}
+	// if err != nil {
+	// 	fmt.Println("No rows were returned %w", err)
+
+	// }
+	// var name string
+	// rows.Scan(&name)
+	// fmt.Print(name)
+	// for rows.Next() {
+
+	// 	fmt.Print(name)
+	// }
 }
