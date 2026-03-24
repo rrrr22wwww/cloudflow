@@ -9,16 +9,19 @@ import (
 	"strings"
 )
 
+// Конфигурация бд
 type databaseconfig struct {
-	name     string
-	port     string
-	password string
-	user     string
+	Name     string
+	Port     string
+	Password string
+	User     string
 }
 
+// Конгифигурация для запуска сервера
 type serverconfig struct {
 }
 
+// Для тестировки KMS (значения для генерация секрета)
 type securityconfig struct {
 }
 
@@ -28,17 +31,19 @@ type Config struct {
 	Security *securityconfig
 }
 
-func loadEnvFile() error {
+func loadEnvFile() (*map[string]string, error) {
 	dir, err := os.Getwd()
+	dir = "/Users/root1/Desktop/cloudflow/.env.development"
 	if err != nil {
 		log.Fatal("The directory cannot be determined")
 	}
 	f, err := os.Open(dir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
+	envs := make(map[string]string)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
@@ -46,43 +51,25 @@ func loadEnvFile() error {
 		}
 		var parts []string = strings.SplitN(line, "=", 2)
 		if len(parts) != 2 {
-			return errors.New("invalid environment variable format")
+			return nil, errors.New("invalid environment variable format")
 		}
-		err := os.Setenv(strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]))
-		if err != nil {
-			return err
-		}
+		envs[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
 	}
-	return scanner.Err()
+	return &envs, scanner.Err()
 }
 
 func CreateConfig() (*Config, error) {
-	if err := loadEnvFile(); err != nil {
+	envs, err := loadEnvFile()
+	if err != nil {
 		return nil, fmt.Errorf("failed to load env file: %w", err)
-	}
-
-	required := []string{
-		"DATABASE_NAME",
-		"DATABASE_PORT",
-		"DATABASE_PASSWORD",
-		"DATABASE_USER",
-	}
-
-	envs := make(map[string]string)
-	for _, key := range required {
-		val, ok := os.LookupEnv(key)
-		if !ok {
-			return nil, fmt.Errorf("environment variable %s not set", key)
-		}
-		envs[key] = val
 	}
 
 	return &Config{
 		Database: &databaseconfig{
-			name:     envs["DATABASE_NAME"],
-			port:     envs["DATABASE_PORT"],
-			password: envs["DATABASE_PASSWORD"],
-			user:     envs["DATABASE_USER"],
+			Name:     (*envs)["DATABASE_NAME"],
+			Port:     (*envs)["DATABASE_PORT"],
+			Password: (*envs)["DATABASE_PASSWORD"],
+			User:     (*envs)["DATABASE_USER"],
 		},
 		Server:   &serverconfig{},
 		Security: &securityconfig{},

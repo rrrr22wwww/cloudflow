@@ -5,12 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="91374b46-d85e-4141-9ff6-0c281d1819a8" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.local.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/sqldialects.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sqldialects.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/TODO" beforeDir="false" afterPath="$PROJECT_DIR$/TODO" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/apps/go.mod" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/apps/go.sum" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/internal/entity/order.go" beforeDir="false" afterPath="$PROJECT_DIR$/apps/internal/entity/order.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/cmd/server/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/apps/cmd/server/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/internal/config/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/apps/internal/config/config.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/internal/database/postgres.go" beforeDir="false" afterPath="$PROJECT_DIR$/apps/internal/database/postgres.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

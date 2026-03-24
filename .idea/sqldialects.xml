@@ -2,9 +2,7 @@
 <project version="4">
   <component name="SqlDialectMappings">
     <file url="file://$PROJECT_DIR$/lib/migration/initdata.sql" dialect="PostgreSQL" />
-    <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310200309_user.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310200401_user_session.sql" dialect="PostgreSQL" />
-    <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310200409_user.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310200410_tag.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310200412_categorie.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/lib/migration/postgres/20260310201130_product.sql" dialect="PostgreSQL" />
