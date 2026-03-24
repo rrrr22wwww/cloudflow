@@ -22,20 +22,16 @@ func main() {
 	db.QueryRow("SELECT version(), current_database()").Scan(&version, &dbname)
 	fmt.Printf("Database: %s\n", dbname)
 	fmt.Printf("Version: %s\n", version)
-	// rows, err := db.Query(`
-	// 	    SELECT name
-	// 	    FROM users
+	rows, err := db.Query(`
+		    SELECT name
+		    FROM users
 
-	// `)
-	// if err != nil {
-	// 	fmt.Println("No rows were returned %w", err)
+	`)
+	if err != nil {
+		fmt.Println("No rows were returned %w", err)
 
-	// }
-	// var name string
-	// rows.Scan(&name)
-	// fmt.Print(name)
-	// for rows.Next() {
-
-	// 	fmt.Print(name)
-	// }
+	}
+	if !rows.Next() {
+		fmt.Println("No rows were returned")
+	}
 }
