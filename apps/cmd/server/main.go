@@ -20,11 +20,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger, err := logger.Setup(cfg)
+	logger, claenup, err := logger.Setup(cfg)
 	if err != nil {
 		slog.Error("Failed to load logger", "error", err)
 		os.Exit(1)
 	}
+	defer claenup()
 	slog.SetDefault(logger)
 
 	db, err := database.Connect(cfg)

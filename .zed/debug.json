@@ -1,0 +1,13 @@
+[
+  {
+    "label": "Debug Server",
+    "adapter": "Delve",
+    "request": "launch",
+    "mode": "debug",
+    "program": "./cmd/server",
+    "cwd": "${ZED_WORKTREE_ROOT}/apps",
+    "launch_args": {
+      "dlvFlags": ["--max-string-len=1000000"],
+    },
+  },
+]
