@@ -19,9 +19,14 @@ type databaseconfig struct {
 
 // Конгифигурация для запуска сервера
 type serverconfig struct {
+	Flog  string // prod || dev
+	Llog  string // info || debug || warn || error
+	Host  string
+	Port  string
+	Lpath string
 }
 
-// Для тестировки KMS (значения для генерация секрета)
+// Для тестировки, замена - KMS (значения для генерация секретов)
 type securityconfig struct {
 }
 
@@ -63,7 +68,6 @@ func CreateConfig() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load env file: %w", err)
 	}
-
 	return &Config{
 		Database: &databaseconfig{
 			Name:     (*envs)["DATABASE_NAME"],
@@ -71,7 +75,12 @@ func CreateConfig() (*Config, error) {
 			Password: (*envs)["DATABASE_PASSWORD"],
 			User:     (*envs)["DATABASE_USER"],
 		},
-		Server:   &serverconfig{},
+		Server: &serverconfig{
+			Flog:  (*envs)["LOG_TYPE "],
+			Host:  (*envs)["SERVER_HOST"],
+			Port:  (*envs)["SERVER_PORT"],
+			Lpath: (*envs)["LOG_PATH"],
+		},
 		Security: &securityconfig{},
 	}, nil
 }

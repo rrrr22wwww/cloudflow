@@ -8,11 +8,7 @@ import (
 	"github.com/rrrr22wwww.com/cloudflow/internal/config"
 )
 
-func Connect() (*sql.DB, error) {
-	cfg, err := config.CreateConfig()
-	if err != nil {
-		return nil, fmt.Errorf("config.CreateConfig(database) failed: %w", err)
-	}
+func Connect(cfg *config.Config) (*sql.DB, error) {
 
 	dsn := fmt.Sprintf("postgresql://%s:%s@localhost:%s/%s",
 		cfg.Database.User,

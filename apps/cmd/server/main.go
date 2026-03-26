@@ -2,13 +2,32 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
+	_ "net/http"
+	"os"
 
+	_ "github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/rrrr22wwww.com/cloudflow/internal/config"
 	"github.com/rrrr22wwww.com/cloudflow/internal/database"
+	"github.com/rrrr22wwww.com/cloudflow/internal/logger"
 )
 
 func main() {
-	db, err := database.Connect()
+	cfg, err := config.CreateConfig()
+	if err != nil {
+		slog.Error("Failed to load configuration", "error", err)
+		os.Exit(1)
+	}
+
+	logger, err := logger.Setup(cfg)
+	if err != nil {
+		slog.Error("Failed to load logger", "error", err)
+		os.Exit(1)
+	}
+	slog.SetDefault(logger)
+
+	db, err := database.Connect(cfg)
 	if err != nil {
 		panic(err)
 	}
