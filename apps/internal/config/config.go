@@ -76,7 +76,7 @@ func CreateConfig() (*Config, error) {
 			User:     (*envs)["DATABASE_USER"],
 		},
 		Server: &serverconfig{
-			Flog:  (*envs)["LOG_TYPE "],
+			Flog:  (*envs)["LOG_TYPE"],
 			Host:  (*envs)["SERVER_HOST"],
 			Port:  (*envs)["SERVER_PORT"],
 			Lpath: (*envs)["LOG_PATH"],
