@@ -9,6 +9,7 @@ import (
 	"github.com/rrrr22wwww.com/cloudflow/internal/config"
 	"github.com/rrrr22wwww.com/cloudflow/internal/database"
 	"github.com/rrrr22wwww.com/cloudflow/internal/logger"
+	"github.com/rrrr22wwww.com/cloudflow/internal/middleware"
 )
 
 func main() {
@@ -31,7 +32,13 @@ func main() {
 		panic(err)
 	}
 	defer db.Close()
-	server := gin.New()
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
+	r.Use(middleware.SlogLogger(), middleware.SlogRecovery())
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{"msg": "hi"})
+	})
+	r.Run(":8080")
 }
 
 // stats := db.Stats()
