@@ -4,8 +4,11 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/rrrr22wwww.com/cloudflow/graph"
 	"github.com/rrrr22wwww.com/cloudflow/internal/config"
 	"github.com/rrrr22wwww.com/cloudflow/internal/database"
 	"github.com/rrrr22wwww.com/cloudflow/internal/logger"
@@ -35,6 +38,12 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.SlogLogger(), middleware.SlogRecovery())
+
+	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{
+		Resolvers: &graph.Resolver{DB: db},
+	}))
+	r.POST("/query", gin.WrapH(srv))
+	r.GET("/", gin.WrapH(playground.Handler("GraphQL", "/query")))
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{"msg": "hi"})
 	})

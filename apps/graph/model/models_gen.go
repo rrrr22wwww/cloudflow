@@ -5,22 +5,44 @@ package model
 type Mutation struct {
 }
 
-type NewTodo struct {
-	Text   string `json:"text"`
-	UserID string `json:"userId"`
+type Order struct {
+	ID         string `json:"id"`
+	BuyerID    string `json:"buyer_id"`
+	Status     int32  `json:"status"`
+	TotalAmout int32  `json:"total_amout"`
+	OrderBuy   int32  `json:"order_buy"`
+}
+
+type OrderItem struct {
+	ID              string `json:"id"`
+	OrderID         string `json:"orderID"`
+	ProductID       string `json:"productID"`
+	PriceAtPurchase int32  `json:"price_at_purchase"`
+}
+
+type Product struct {
+	ID          string   `json:"id"`
+	SellerID    string   `json:"sellerID"`
+	CategoryID  int32    `json:"categoryID"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Price       int32    `json:"price"`
+	Rating      float64  `json:"rating"`
+	Tags        []string `json:"tags"`
+	CreateAt    string   `json:"create_at"`
 }
 
 type Query struct {
 }
 
-type Todo struct {
-	ID   string `json:"id"`
-	Text string `json:"text"`
-	Done bool   `json:"done"`
-	User *User  `json:"user"`
-}
-
 type User struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	Email     string  `json:"email"`
+	ImgUser   string  `json:"img_user"`
+	Password  string  `json:"password"`
+	Role      string  `json:"role"`
+	Rating    int32   `json:"rating"`
+	Balance   int32   `json:"balance"`
+	CreatedAt *string `json:"created_at,omitempty"`
 }

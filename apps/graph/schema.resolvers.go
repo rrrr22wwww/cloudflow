@@ -7,19 +7,41 @@ package graph
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/rrrr22wwww.com/cloudflow/graph/model"
 )
 
-// CreateTodo is the resolver for the createTodo field.
-func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: CreateTodo - createTodo"))
+// SetUser is the resolver for the setUser field.
+func (r *mutationResolver) SetUser(ctx context.Context, name string, email string, imgUser string, password string) (*model.User, error) {
+	user := &model.User{}
+
+	err := r.DB.QueryRowContext(ctx,
+		`INSERT INTO users (id, name, email, img_user, password, role, rating, balance)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'User', 0, 0)
+           RETURNING id, name, email, img_user, role, rating, balance`,
+		name, email, imgUser, password,
+	).Scan(&user.ID, &user.Name, &user.Email, &user.ImgUser, &user.Role, &user.Rating, &user.Balance)
+
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
-// Todos is the resolver for the todos field.
-func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: Todos - todos"))
+// GetUser is the resolver for the getUser field.
+func (r *queryResolver) GetUser(ctx context.Context, name *string, email *string, id *string) (*model.User, error) {
+	user := &model.User{}
+
+	err := r.DB.QueryRowContext(ctx,
+		`SELECT id, name, email, img_user, role, rating, balance
+           FROM users WHERE id = $1`,
+		id,
+	).Scan(&user.ID, &user.Name, &user.Email, &user.ImgUser, &user.Role, &user.Rating, &user.Balance)
+
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 // Mutation returns MutationResolver implementation.

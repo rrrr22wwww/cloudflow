@@ -2,29 +2,24 @@
 #
 # https://gqlgen.com/getting-started/
 
-enum StatusOrder {
-    pending
-    processing
-    shipped
-    delivered
-}
-
 type User {
     id: ID!
     name: String!
     email: String!
     img_user: String!
+    password: String!
     role: String!
-    rating: Int
-    balance: Int
+    rating: Int!
+    balance: Int!
+    created_at: String
 }
 
 type Order {
     id: ID!
     buyer_id: ID!
-    status: StatusOrder!
-    total_amout: Int
-    data_buy: Int
+    status: Int!
+    total_amout: Int!
+    order_buy: Int!
 }
 type Product {
     id: ID!
@@ -35,23 +30,24 @@ type Product {
     price: Int!
     rating: Float!
     tags: [String!]!
-    createdAt: String!
+    create_at: String!
 }
 type OrderItem {
     id: ID!
     orderID: ID!
     productID: ID!
-    priceAtPurchase: Int!
-}
-type Query {
-    todos: [Todo!]!
+    price_at_purchase: Int!
 }
 
-input NewTodo {
-    text: String!
-    userId: String!
+type Query {
+    getUser(name: String, email: String, id: ID): User
 }
 
 type Mutation {
-    createTodo(input: NewTodo!): Todo!
+    setUser(
+        name: String!
+        email: String!
+        img_user: String!
+        password: String!
+    ): User
 }
