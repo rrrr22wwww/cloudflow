@@ -21,15 +21,15 @@ type OrderItem struct {
 }
 
 type Product struct {
-	ID          string   `json:"id"`
-	SellerID    string   `json:"sellerID"`
-	CategoryID  int32    `json:"categoryID"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Price       int32    `json:"price"`
-	Rating      float64  `json:"rating"`
-	Tags        []string `json:"tags"`
-	CreateAt    string   `json:"create_at"`
+	ID          string    `json:"id"`
+	SellerID    string    `json:"sellerID"`
+	CategoryID  int32     `json:"categoryID"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Price       int32     `json:"price"`
+	Rating      float64   `json:"rating"`
+	Tags        []*string `json:"tags"`
+	CreateAt    string    `json:"create_at"`
 }
 
 type Query struct {

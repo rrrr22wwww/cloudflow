@@ -5,9 +5,8 @@ go run github.com/pressly/goose/v3/cmd/goose@latest -dir ./lib/migration/postgre
   up
 docker exec -it postgres-db psql -U user -d mydb -c "DROP TYPE IF EXISTS user_role CASCADE;"
 
-
-
 ===============================================
-refactor code conn db to -> internal/postgres (дописать!!!)
-add crud from squirrel(sql type operations)
-add grpql (&test)
+- complit to grphql api / add 2FA verification
+- realization architectury serivce
+- create midllware / add cache(chek yandex tec)
+- implement KMS( Vault,SOPS,Infisical  )

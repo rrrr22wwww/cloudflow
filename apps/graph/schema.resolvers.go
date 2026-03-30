@@ -7,9 +7,15 @@ package graph
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rrrr22wwww.com/cloudflow/graph/model"
 )
+
+type Param struct {
+	Column string
+	Value  *string
+}
 
 // SetUser is the resolver for the setUser field.
 func (r *mutationResolver) SetUser(ctx context.Context, name string, email string, imgUser string, password string) (*model.User, error) {
@@ -28,6 +34,11 @@ func (r *mutationResolver) SetUser(ctx context.Context, name string, email strin
 	return user, nil
 }
 
+// SetProduct is the resolver for the setProduct field.
+func (r *mutationResolver) SetProduct(ctx context.Context, sellerID string, categoryID int32, name string, description string, price int32, rating float64, tags []*string) (*model.Product, error) {
+	panic(fmt.Errorf("not implemented: SetProduct - setProduct"))
+}
+
 // GetUser is the resolver for the getUser field.
 func (r *queryResolver) GetUser(ctx context.Context, name *string, email *string, id *string) (*model.User, error) {
 	user := &model.User{}
@@ -42,6 +53,34 @@ func (r *queryResolver) GetUser(ctx context.Context, name *string, email *string
 		return nil, err
 	}
 	return user, nil
+}
+
+// GetProduct is the resolver for the getProduct field.
+func (r *queryResolver) GetProduct(ctx context.Context, name *string, id *string, sellerID *string) (*model.Product, error) {
+	product := &model.Product{}
+	args := []any{}
+	params := []Param{
+		{"name", name},
+		{"id", id},
+		{"seller_id", sellerID},
+	}
+
+	query := "SELECT id, seller_id, name, description, price, rating, tags, created_at FROM products WHERE 1=1"
+	argIdx := 1
+	for _, p := range params {
+		if p.Value != nil {
+			query += fmt.Sprintf(" AND %s = $%d", p.Value, argIdx)
+			args = append(args, *p.Value)
+			argIdx++
+		}
+	}
+	err := r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&product.ID, &product.SellerID, &product.Name, &product.Description,
+		&product.Price, &product.Rating, &product.Tags, &product.CreateAt)
+	if err != nil {
+		return nil, err
+	}
+	return product, nil
 }
 
 // Mutation returns MutationResolver implementation.

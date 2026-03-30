@@ -37,7 +37,8 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Mutation struct {
-		SetUser func(childComplexity int, name string, email string, imgUser string, password string) int
+		SetProduct func(childComplexity int, sellerID string, categoryID int32, name string, description string, price int32, rating float64, tags []*string) int
+		SetUser    func(childComplexity int, name string, email string, imgUser string, password string) int
 	}
 
 	Order struct {
@@ -68,7 +69,8 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		GetUser func(childComplexity int, name *string, email *string, id *string) int
+		GetProduct func(childComplexity int, nama *string, id *string, sellerID *string) int
+		GetUser    func(childComplexity int, name *string, email *string, id *string) int
 	}
 
 	User struct {
@@ -86,9 +88,11 @@ type ComplexityRoot struct {
 
 type MutationResolver interface {
 	SetUser(ctx context.Context, name string, email string, imgUser string, password string) (*model.User, error)
+	SetProduct(ctx context.Context, sellerID string, categoryID int32, name string, description string, price int32, rating float64, tags []*string) (*model.Product, error)
 }
 type QueryResolver interface {
 	GetUser(ctx context.Context, name *string, email *string, id *string) (*model.User, error)
+	GetProduct(ctx context.Context, nama *string, id *string, sellerID *string) (*model.Product, error)
 }
 
 type executableSchema graphql.ExecutableSchemaState[ResolverRoot, DirectiveRoot, ComplexityRoot]
@@ -105,6 +109,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	_ = ec
 	switch typeName + "." + field {
 
+	case "Mutation.setProduct":
+		if e.ComplexityRoot.Mutation.SetProduct == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setProduct_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetProduct(childComplexity, args["sellerID"].(string), args["categoryID"].(int32), args["name"].(string), args["description"].(string), args["price"].(int32), args["rating"].(float64), args["tags"].([]*string)), true
 	case "Mutation.setUser":
 		if e.ComplexityRoot.Mutation.SetUser == nil {
 			break
@@ -228,6 +243,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Product.Tags(childComplexity), true
 
+	case "Query.getProduct":
+		if e.ComplexityRoot.Query.GetProduct == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getProduct_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.GetProduct(childComplexity, args["nama"].(*string), args["id"].(*string), args["sellerID"].(*string)), true
 	case "Query.getUser":
 		if e.ComplexityRoot.Query.GetUser == nil {
 			break
@@ -396,6 +422,47 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
+func (ec *executionContext) field_Mutation_setProduct_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sellerID", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["sellerID"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "categoryID", ec.unmarshalNInt2int32)
+	if err != nil {
+		return nil, err
+	}
+	args["categoryID"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "name", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "description", ec.unmarshalNString2string)
+	if err != nil {
+		return nil, err
+	}
+	args["description"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "price", ec.unmarshalNInt2int32)
+	if err != nil {
+		return nil, err
+	}
+	args["price"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "rating", ec.unmarshalNFloat2float64)
+	if err != nil {
+		return nil, err
+	}
+	args["rating"] = arg5
+	arg6, err := graphql.ProcessArgField(ctx, rawArgs, "tags", ec.unmarshalNString2ᚕᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["tags"] = arg6
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_setUser_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -430,6 +497,27 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_getProduct_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "nama", ec.unmarshalOString2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["nama"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalOID2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "sellerID", ec.unmarshalOID2ᚖstring)
+	if err != nil {
+		return nil, err
+	}
+	args["sellerID"] = arg2
 	return args, nil
 }
 
@@ -561,6 +649,67 @@ func (ec *executionContext) fieldContext_Mutation_setUser(ctx context.Context, f
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setProduct(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_setProduct,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetProduct(ctx, fc.Args["sellerID"].(string), fc.Args["categoryID"].(int32), fc.Args["name"].(string), fc.Args["description"].(string), fc.Args["price"].(int32), fc.Args["rating"].(float64), fc.Args["tags"].([]*string))
+		},
+		nil,
+		ec.marshalOProduct2ᚖgithubᚗcomᚋrrrr22wwwwᚗcomᚋcloudflowᚋgraphᚋmodelᚐProduct,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_setProduct(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Product_id(ctx, field)
+			case "sellerID":
+				return ec.fieldContext_Product_sellerID(ctx, field)
+			case "categoryID":
+				return ec.fieldContext_Product_categoryID(ctx, field)
+			case "name":
+				return ec.fieldContext_Product_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Product_description(ctx, field)
+			case "price":
+				return ec.fieldContext_Product_price(ctx, field)
+			case "rating":
+				return ec.fieldContext_Product_rating(ctx, field)
+			case "tags":
+				return ec.fieldContext_Product_tags(ctx, field)
+			case "create_at":
+				return ec.fieldContext_Product_create_at(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Product", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setProduct_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -1041,7 +1190,7 @@ func (ec *executionContext) _Product_tags(ctx context.Context, field graphql.Col
 			return obj.Tags, nil
 		},
 		nil,
-		ec.marshalNString2ᚕstringᚄ,
+		ec.marshalNString2ᚕᚖstring,
 		true,
 		true,
 	)
@@ -1144,6 +1293,67 @@ func (ec *executionContext) fieldContext_Query_getUser(ctx context.Context, fiel
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getProduct(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_getProduct,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().GetProduct(ctx, fc.Args["nama"].(*string), fc.Args["id"].(*string), fc.Args["sellerID"].(*string))
+		},
+		nil,
+		ec.marshalOProduct2ᚖgithubᚗcomᚋrrrr22wwwwᚗcomᚋcloudflowᚋgraphᚋmodelᚐProduct,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_getProduct(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Product_id(ctx, field)
+			case "sellerID":
+				return ec.fieldContext_Product_sellerID(ctx, field)
+			case "categoryID":
+				return ec.fieldContext_Product_categoryID(ctx, field)
+			case "name":
+				return ec.fieldContext_Product_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Product_description(ctx, field)
+			case "price":
+				return ec.fieldContext_Product_price(ctx, field)
+			case "rating":
+				return ec.fieldContext_Product_rating(ctx, field)
+			case "tags":
+				return ec.fieldContext_Product_tags(ctx, field)
+			case "create_at":
+				return ec.fieldContext_Product_create_at(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Product", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getProduct_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2996,6 +3206,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setUser(ctx, field)
 			})
+		case "setProduct":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setProduct(ctx, field)
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3240,6 +3454,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getUser(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getProduct":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getProduct(ctx, field)
 				return res
 			}
 
@@ -3771,14 +4004,14 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
-func (ec *executionContext) unmarshalNString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+func (ec *executionContext) unmarshalNString2ᚕᚖstring(ctx context.Context, v any) ([]*string, error) {
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
-	res := make([]string, len(vSlice))
+	res := make([]*string, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		res[i], err = ec.unmarshalOString2ᚖstring(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -3786,16 +4019,10 @@ func (ec *executionContext) unmarshalNString2ᚕstringᚄ(ctx context.Context, v
 	return res, nil
 }
 
-func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+func (ec *executionContext) marshalNString2ᚕᚖstring(ctx context.Context, sel ast.SelectionSet, v []*string) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	for i := range v {
-		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
-	}
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
+		ret[i] = ec.marshalOString2ᚖstring(ctx, sel, v[i])
 	}
 
 	return ret
@@ -3988,6 +4215,13 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 	_ = ctx
 	res := graphql.MarshalID(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOProduct2ᚖgithubᚗcomᚋrrrr22wwwwᚗcomᚋcloudflowᚋgraphᚋmodelᚐProduct(ctx context.Context, sel ast.SelectionSet, v *model.Product) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Product(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {
