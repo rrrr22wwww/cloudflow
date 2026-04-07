@@ -12,75 +12,107 @@ import (
 	"github.com/rrrr22wwww.com/cloudflow/graph/model"
 )
 
-type Param struct {
-	Column string
-	Value  *string
-}
-
 // SetUser is the resolver for the setUser field.
 func (r *mutationResolver) SetUser(ctx context.Context, name string, email string, imgUser string, password string) (*model.User, error) {
 	user := &model.User{}
 
 	err := r.DB.QueryRowContext(ctx,
 		`INSERT INTO users (id, name, email, img_user, password, role, rating, balance)
-           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'User', 0, 0)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'User',0,0)
            RETURNING id, name, email, img_user, role, rating, balance`,
 		name, email, imgUser, password,
 	).Scan(&user.ID, &user.Name, &user.Email, &user.ImgUser, &user.Role, &user.Rating, &user.Balance)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error query <SetUser> database: %w", err)
 	}
 	return user, nil
 }
 
 // SetProduct is the resolver for the setProduct field.
 func (r *mutationResolver) SetProduct(ctx context.Context, sellerID string, categoryID int32, name string, description string, price int32, rating float64, tags []*string) (*model.Product, error) {
-	panic(fmt.Errorf("not implemented: SetProduct - setProduct"))
+	product := &model.Product{}
+	err := r.DB.QueryRowContext(ctx,
+		`INSERT INTO products (id, seller_id, category_id, name, description, price, rating, status,created_at,updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
+           RETURNING id, seller_id, category_id, name, description, price, rating, status, created_at, updated_at`,
+		sellerID, categoryID, name, description, price, rating,
+	).Scan(&product.ID, &product.SellerID, &product.CategoryID, &product.Name, &product.Description)
+
+	if err != nil {
+		return nil, fmt.Errorf("Error query <SetProduct> database: %w", err)
+	}
+	return product, err
 }
 
 // GetUser is the resolver for the getUser field.
-func (r *queryResolver) GetUser(ctx context.Context, name *string, email *string, id *string) (*model.User, error) {
-	user := &model.User{}
+func (r *queryResolver) GetUser(ctx context.Context, name *string, email *string, id *string) ([]*model.User, error) {
+	users := []*model.User{}
+	params := []Param{
+		{"name", name},
+		{"id", id},
+		{"email", email},
+	}
+	query := "SELECT id, name, email, img_user, role, rating, balance FROM users WHERE 1=1"
 
-	err := r.DB.QueryRowContext(ctx,
-		`SELECT id, name, email, img_user, role, rating, balance
-           FROM users WHERE id = $1`,
-		id,
-	).Scan(&user.ID, &user.Name, &user.Email, &user.ImgUser, &user.Role, &user.Rating, &user.Balance)
+	myQuery, args := buildEqualityQuery(&query, &params, "AND")
+	user := &model.User{}
+	// fmt.Printf("Query:%s \n %s \n", myQuery, args[0])
+	rows, err := r.DB.QueryContext(ctx, myQuery, args...)
+	// err := r.DB.QueryRowContext(ctx,
+	// 	"SELECT id, name, email, img_user, role, rating, balance FROM users WHERE id = $1",
+	// 	*id).Scan(&user.ID, &user.Name, &user.Email, &user.ImgUser, &user.Role, &user.Rating, &user.Balance)
 
 	if err != nil {
 		return nil, err
 	}
-	return user, nil
+	users = append(users, user)
+	for rows.Next() {
+		user := &model.User{}
+		err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.ImgUser, &user.Role, &user.Rating, &user.Balance)
+		if err != nil {
+			return nil, fmt.Errorf("Error query <GetUser> from database %w", err)
+		}
+		users = append(users, user)
+	}
+	return users, nil
 }
 
 // GetProduct is the resolver for the getProduct field.
-func (r *queryResolver) GetProduct(ctx context.Context, name *string, id *string, sellerID *string) (*model.Product, error) {
-	product := &model.Product{}
-	args := []any{}
+func (r *queryResolver) GetProduct(ctx context.Context, name *string, id *string, sellerID *string) ([]*model.Product, error) {
+	products := []*model.Product{}
 	params := []Param{
 		{"name", name},
 		{"id", id},
 		{"seller_id", sellerID},
 	}
 
-	query := "SELECT id, seller_id, name, description, price, rating, tags, created_at FROM products WHERE 1=1"
-	argIdx := 1
-	for _, p := range params {
-		if p.Value != nil {
-			query += fmt.Sprintf(" AND %s = $%d", p.Value, argIdx)
-			args = append(args, *p.Value)
-			argIdx++
-		}
+	query := "SELECT * FROM products WHERE 1=1"
+	myQuery, args := buildEqualityQuery(&query, &params, "AND")
+
+	if len(args) == 0 {
+		myQuery = query
 	}
-	err := r.DB.QueryRowContext(ctx, query, args...).Scan(
-		&product.ID, &product.SellerID, &product.Name, &product.Description,
-		&product.Price, &product.Rating, &product.Tags, &product.CreateAt)
+	rows, err := r.DB.QueryContext(ctx, myQuery, args...)
 	if err != nil {
 		return nil, err
 	}
-	return product, nil
+	for rows.Next() {
+		product := &model.Product{}
+		err := rows.Scan(
+			&product.ID, &product.SellerID, &product.Name, &product.Description,
+			&product.Price, &product.Rating, &product.Tags, &product.CreateAt)
+		if err != nil {
+			return nil, fmt.Errorf("Error query <GetProduct> from database %w", err)
+		}
+		products = append(products, product)
+	}
+	return products, nil
+}
+
+// GetOrder is the resolver for the getOrder field.
+func (r *queryResolver) GetOrder(ctx context.Context, id *string, buyerID *string, totalAmout *int32, orderBuy *int32) ([]*model.Order, error) {
+	panic(fmt.Errorf("not implemented: GetOrder - getOrder"))
 }
 
 // Mutation returns MutationResolver implementation.

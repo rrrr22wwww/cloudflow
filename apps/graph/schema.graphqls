@@ -40,8 +40,9 @@ type OrderItem {
 }
 
 type Query {
-    getUser(name: String, email: String, id: ID): User
-    getProduct(nama: String, id: ID, sellerID: ID): Product
+    getUser(name: String, email: String, id: ID): [User]
+    getProduct(name: String, id: ID, sellerID: ID): [Product]
+    getOrder(id: ID, buyer_id: ID, total_amout: Int, order_buy: Int): [Order]
 }
 
 type Mutation {
