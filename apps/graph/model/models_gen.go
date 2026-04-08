@@ -2,15 +2,22 @@
 
 package model
 
+type Category struct {
+	ID       int32  `json:"id"`
+	Name     string `json:"name"`
+	ParentID *int32 `json:"parent_id,omitempty"`
+}
+
 type Mutation struct {
 }
 
 type Order struct {
-	ID         string `json:"id"`
-	BuyerID    string `json:"buyer_id"`
-	Status     int32  `json:"status"`
-	TotalAmout int32  `json:"total_amout"`
-	OrderBuy   int32  `json:"order_buy"`
+	ID          string  `json:"id"`
+	BuyerID     string  `json:"buyer_id"`
+	Status      string  `json:"status"`
+	TotalAmount float64 `json:"total_amount"`
+	CreatedAt   *string `json:"created_at,omitempty"`
+	UpdatedAt   *string `json:"updated_at,omitempty"`
 }
 
 type OrderItem struct {
@@ -22,27 +29,29 @@ type OrderItem struct {
 
 type Product struct {
 	ID          string    `json:"id"`
-	SellerID    string    `json:"sellerID"`
-	CategoryID  int32     `json:"categoryID"`
+	SellerID    string    `json:"seller_id"`
+	CategoryID  *int32    `json:"category_id,omitempty"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	Price       int32     `json:"price"`
-	Rating      float64   `json:"rating"`
-	Tags        []*string `json:"tags"`
-	CreateAt    string    `json:"create_at"`
+	Price       float64   `json:"price"`
+	Rating      *int32    `json:"rating,omitempty"`
+	Status      *string   `json:"status,omitempty"`
+	Tags        []*string `json:"tags,omitempty"`
+	CreatedAt   string    `json:"created_at"`
+	UpdatedAt   string    `json:"updated_at"`
 }
 
 type Query struct {
 }
 
 type User struct {
-	ID        string  `json:"id"`
-	Name      string  `json:"name"`
-	Email     string  `json:"email"`
-	ImgUser   string  `json:"img_user"`
-	Password  string  `json:"password"`
-	Role      string  `json:"role"`
-	Rating    int32   `json:"rating"`
-	Balance   int32   `json:"balance"`
-	CreatedAt *string `json:"created_at,omitempty"`
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Email     string   `json:"email"`
+	ImgUser   *string  `json:"img_user,omitempty"`
+	Role      *string  `json:"role,omitempty"`
+	Rating    *int32   `json:"rating,omitempty"`
+	Balance   *float64 `json:"balance,omitempty"`
+	CreatedAt *string  `json:"created_at,omitempty"`
+	UpdatedAt *string  `json:"updated_at,omitempty"`
 }

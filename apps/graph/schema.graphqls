@@ -6,32 +6,43 @@ type User {
     id: ID!
     name: String!
     email: String!
-    img_user: String!
-    password: String!
-    role: String!
-    rating: Int!
-    balance: Int!
+    img_user: String
+    role: String
+    rating: Int
+    balance: Float # numeric в БД
     created_at: String
+    updated_at: String
+}
+
+type Product {
+    id: ID!
+    seller_id: ID!
+    category_id: Int
+    name: String!
+    description: String!
+    price: Float! # numeric в БД
+    rating: Int # integer в БД
+    status: String
+    tags: [String] # Потребует JOIN при запросе
+    created_at: String!
+    updated_at: String!
 }
 
 type Order {
     id: ID!
     buyer_id: ID!
-    status: Int!
-    total_amout: Int!
-    order_buy: Int!
+    status: String!
+    total_amount: Float!
+    created_at: String
+    updated_at: String
 }
-type Product {
-    id: ID!
-    sellerID: ID!
-    categoryID: Int!
+
+type Category {
+    id: Int!
     name: String!
-    description: String!
-    price: Int!
-    rating: Float!
-    tags: [String]!
-    create_at: String!
+    parent_id: Int
 }
+
 type OrderItem {
     id: ID!
     orderID: ID!
@@ -40,9 +51,10 @@ type OrderItem {
 }
 
 type Query {
-    getUser(name: String, email: String, id: ID): [User]
-    getProduct(name: String, id: ID, sellerID: ID): [Product]
-    getOrder(id: ID, buyer_id: ID, total_amout: Int, order_buy: Int): [Order]
+    getUsers(name: String, email: String, id: ID): [User]
+    getProducts(name: String, id: ID, seller_id: ID): [Product]
+    getOrders(buyer_id: ID, status: String): [Order]
+    getCategories: [Category]
 }
 
 type Mutation {
@@ -61,4 +73,5 @@ type Mutation {
         rating: Float!
         tags: [String]!
     ): Product
+    setCategory(name: String!, parentID: Int): Category
 }

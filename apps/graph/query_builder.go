@@ -13,9 +13,7 @@ func buildEqualityQuery(base *string, params *[]Param, command string) (string, 
 	argIdx := 1
 	for _, p := range *params {
 		if p.Value != nil {
-			fmt.Printf("Adding condition: %s %s = $%d\n", p.Column, command, argIdx)
 			query += fmt.Sprintf(" %s %s = $%d", command, p.Column, argIdx)
-			fmt.Printf("Query after adding condition: %s\n", query)
 			args = append(args, *p.Value)
 			argIdx++
 		}

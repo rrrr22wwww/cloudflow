@@ -33,11 +33,15 @@ func (r *mutationResolver) SetUser(ctx context.Context, name string, email strin
 func (r *mutationResolver) SetProduct(ctx context.Context, sellerID string, categoryID int32, name string, description string, price int32, rating float64, tags []*string) (*model.Product, error) {
 	product := &model.Product{}
 	err := r.DB.QueryRowContext(ctx,
-		`INSERT INTO products (id, seller_id, category_id, name, description, price, rating, status,created_at,updated_at)
-           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
-           RETURNING id, seller_id, category_id, name, description, price, rating, status, created_at, updated_at`,
+		`INSERT INTO products (id, seller_id, category_id, name, description, price, rating, status)
+     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'active')
+     RETURNING * `, // id, seller_id, category_id, name, description, price, rating, status, created_at, updated_at
 		sellerID, categoryID, name, description, price, rating,
-	).Scan(&product.ID, &product.SellerID, &product.CategoryID, &product.Name, &product.Description)
+	).Scan(
+		&product.ID, &product.SellerID, &product.CategoryID, &product.Name,
+		&product.Description, &product.Price, &product.Rating, &product.Status,
+		&product.CreatedAt, &product.UpdatedAt,
+	)
 
 	if err != nil {
 		return nil, fmt.Errorf("Error query <SetProduct> database: %w", err)
@@ -45,31 +49,43 @@ func (r *mutationResolver) SetProduct(ctx context.Context, sellerID string, cate
 	return product, err
 }
 
+// SetCategory is the resolver for the setCategory field.
+func (r *mutationResolver) SetCategory(ctx context.Context, name string, parentID *int32) (*model.Category, error) {
+	cotegory := &model.Category{}
+	err := r.DB.QueryRowContext(ctx,
+		`INSERT INTO categories (name, parent_id)
+	 VALUES ($1, $2)
+	 RETURNING *`,
+		name, parentID,
+	).Scan(&cotegory.ID, &cotegory.Name, &cotegory.ParentID)
+
+	if err != nil {
+		return nil, fmt.Errorf("Error query <SetCategory> database: %w", err)
+	}
+	return cotegory, err
+}
+
 // GetUser is the resolver for the getUser field.
-func (r *queryResolver) GetUser(ctx context.Context, name *string, email *string, id *string) ([]*model.User, error) {
+func (r *queryResolver) GetUsers(ctx context.Context, name *string, email *string, id *string) ([]*model.User, error) {
 	users := []*model.User{}
 	params := []Param{
 		{"name", name},
 		{"id", id},
 		{"email", email},
 	}
-	query := "SELECT id, name, email, img_user, role, rating, balance FROM users WHERE 1=1"
+	query := "SELECT id, name, email, img_user, role, rating, balance,created_at FROM users WHERE 1=1"
 
 	myQuery, args := buildEqualityQuery(&query, &params, "AND")
-	user := &model.User{}
-	// fmt.Printf("Query:%s \n %s \n", myQuery, args[0])
-	rows, err := r.DB.QueryContext(ctx, myQuery, args...)
-	// err := r.DB.QueryRowContext(ctx,
-	// 	"SELECT id, name, email, img_user, role, rating, balance FROM users WHERE id = $1",
-	// 	*id).Scan(&user.ID, &user.Name, &user.Email, &user.ImgUser, &user.Role, &user.Rating, &user.Balance)
 
+	rows, err := r.DB.QueryContext(ctx, myQuery, args...)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
-	users = append(users, user)
+
 	for rows.Next() {
 		user := &model.User{}
-		err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.ImgUser, &user.Role, &user.Rating, &user.Balance)
+		err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.ImgUser, &user.Role, &user.Rating, &user.Balance, &user.CreatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("Error query <GetUser> from database %w", err)
 		}
@@ -79,7 +95,7 @@ func (r *queryResolver) GetUser(ctx context.Context, name *string, email *string
 }
 
 // GetProduct is the resolver for the getProduct field.
-func (r *queryResolver) GetProduct(ctx context.Context, name *string, id *string, sellerID *string) ([]*model.Product, error) {
+func (r *queryResolver) GetProducts(ctx context.Context, name *string, id *string, sellerID *string) ([]*model.Product, error) {
 	products := []*model.Product{}
 	params := []Param{
 		{"name", name},
@@ -97,11 +113,12 @@ func (r *queryResolver) GetProduct(ctx context.Context, name *string, id *string
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		product := &model.Product{}
 		err := rows.Scan(
 			&product.ID, &product.SellerID, &product.Name, &product.Description,
-			&product.Price, &product.Rating, &product.Tags, &product.CreateAt)
+			&product.Price, &product.Rating, &product.Tags, &product.CreatedAt, &product.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("Error query <GetProduct> from database %w", err)
 		}
@@ -110,9 +127,14 @@ func (r *queryResolver) GetProduct(ctx context.Context, name *string, id *string
 	return products, nil
 }
 
-// GetOrder is the resolver for the getOrder field.
-func (r *queryResolver) GetOrder(ctx context.Context, id *string, buyerID *string, totalAmout *int32, orderBuy *int32) ([]*model.Order, error) {
-	panic(fmt.Errorf("not implemented: GetOrder - getOrder"))
+// GetOrders is the resolver for the getOrders field.
+func (r *queryResolver) GetOrders(ctx context.Context, buyerID *string, status *string) ([]*model.Order, error) {
+	panic(fmt.Errorf("not implemented: GetOrders - getOrders"))
+}
+
+// GetCategories is the resolver for the getCategories field.
+func (r *queryResolver) GetCategories(ctx context.Context) ([]*model.Category, error) {
+	panic(fmt.Errorf("not implemented: GetCategories - getCategories"))
 }
 
 // Mutation returns MutationResolver implementation.
