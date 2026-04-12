@@ -11,12 +11,6 @@ func TestGenerate(t *testing.T) {
 	if err != nil {
 		panic("err")
 	}
-	test := "фывфвывфвфывssdas"
-	fmt.Printf("%v", l)
-	fmt.Printf("%v", []rune(test))
-	for i := 0; len(l) > i; i++ {
-		fmt.Print(string(l[i]))
-	}
 
-	// fmt.Printf("%s", string(l))
+	fmt.Println(l)
 }

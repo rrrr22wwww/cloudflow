@@ -10,18 +10,14 @@ import (
 	"fmt"
 
 	"github.com/rrrr22wwww.com/cloudflow/graph/model"
+	"github.com/rrrr22wwww.com/cloudflow/internal/database"
 )
 
 // SetUser is the resolver for the setUser field.
 func (r *mutationResolver) SetUser(ctx context.Context, name string, email string, imgUser string, password string) (*model.User, error) {
 	user := &model.User{}
 
-	err := r.DB.QueryRowContext(ctx,
-		`INSERT INTO users (id, name, email, img_user, password, role, rating, balance)
-           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'User',0,0)
-           RETURNING id, name, email, img_user, role, rating, balance`,
-		name, email, imgUser, password,
-	).Scan(&user.ID, &user.Name, &user.Email, &user.ImgUser, &user.Role, &user.Rating, &user.Balance)
+	err := database.CreatUser(r.DB, ctx, user, &name, &email, &imgUser, &password)
 
 	if err != nil {
 		return nil, fmt.Errorf("Error query <SetUser> database: %w", err)
@@ -32,17 +28,7 @@ func (r *mutationResolver) SetUser(ctx context.Context, name string, email strin
 // SetProduct is the resolver for the setProduct field.
 func (r *mutationResolver) SetProduct(ctx context.Context, sellerID string, categoryID int32, name string, description string, price int32, rating float64, tags []*string) (*model.Product, error) {
 	product := &model.Product{}
-	err := r.DB.QueryRowContext(ctx,
-		`INSERT INTO products (id, seller_id, category_id, name, description, price, rating, status)
-     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'active')
-     RETURNING * `, // id, seller_id, category_id, name, description, price, rating, status, created_at, updated_at
-		sellerID, categoryID, name, description, price, rating,
-	).Scan(
-		&product.ID, &product.SellerID, &product.CategoryID, &product.Name,
-		&product.Description, &product.Price, &product.Rating, &product.Status,
-		&product.CreatedAt, &product.UpdatedAt,
-	)
-
+	err := database.CreateProduct(r.DB, product, ctx, &sellerID, &name, &description, &price, &categoryID, &rating)
 	if err != nil {
 		return nil, fmt.Errorf("Error query <SetProduct> database: %w", err)
 	}
@@ -51,78 +37,28 @@ func (r *mutationResolver) SetProduct(ctx context.Context, sellerID string, cate
 
 // SetCategory is the resolver for the setCategory field.
 func (r *mutationResolver) SetCategory(ctx context.Context, name string, parentID *int32) (*model.Category, error) {
-	cotegory := &model.Category{}
-	err := r.DB.QueryRowContext(ctx,
-		`INSERT INTO categories (name, parent_id)
-	 VALUES ($1, $2)
-	 RETURNING *`,
-		name, parentID,
-	).Scan(&cotegory.ID, &cotegory.Name, &cotegory.ParentID)
-
+	category := &model.Category{}
+	err := database.CreateCategory(r.DB, ctx, category, name, parentID)
 	if err != nil {
 		return nil, fmt.Errorf("Error query <SetCategory> database: %w", err)
 	}
-	return cotegory, err
+	return category, nil
 }
 
 // GetUser is the resolver for the getUser field.
 func (r *queryResolver) GetUsers(ctx context.Context, name *string, email *string, id *string) ([]*model.User, error) {
-	users := []*model.User{}
-	params := []Param{
-		{"name", name},
-		{"id", id},
-		{"email", email},
-	}
-	query := "SELECT id, name, email, img_user, role, rating, balance,created_at FROM users WHERE 1=1"
-
-	myQuery, args := buildEqualityQuery(&query, &params, "AND")
-
-	rows, err := r.DB.QueryContext(ctx, myQuery, args...)
-	defer rows.Close()
+	users, err := database.GetUsers(r.DB, ctx, name, email, id)
 	if err != nil {
-		return nil, err
-	}
-
-	for rows.Next() {
-		user := &model.User{}
-		err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.ImgUser, &user.Role, &user.Rating, &user.Balance, &user.CreatedAt)
-		if err != nil {
-			return nil, fmt.Errorf("Error query <GetUser> from database %w", err)
-		}
-		users = append(users, user)
+		return nil, fmt.Errorf("Error query <GetUser> database: %w", err)
 	}
 	return users, nil
 }
 
 // GetProduct is the resolver for the getProduct field.
 func (r *queryResolver) GetProducts(ctx context.Context, name *string, id *string, sellerID *string) ([]*model.Product, error) {
-	products := []*model.Product{}
-	params := []Param{
-		{"name", name},
-		{"id", id},
-		{"seller_id", sellerID},
-	}
-
-	query := "SELECT * FROM products WHERE 1=1"
-	myQuery, args := buildEqualityQuery(&query, &params, "AND")
-
-	if len(args) == 0 {
-		myQuery = query
-	}
-	rows, err := r.DB.QueryContext(ctx, myQuery, args...)
+	products, err := database.GetProducts(r.DB, ctx, name, id, sellerID)
 	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		product := &model.Product{}
-		err := rows.Scan(
-			&product.ID, &product.SellerID, &product.Name, &product.Description,
-			&product.Price, &product.Rating, &product.Tags, &product.CreatedAt, &product.UpdatedAt)
-		if err != nil {
-			return nil, fmt.Errorf("Error query <GetProduct> from database %w", err)
-		}
-		products = append(products, product)
+		return nil, fmt.Errorf("Error query <GetProduct> database: %w", err)
 	}
 	return products, nil
 }

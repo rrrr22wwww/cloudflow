@@ -1,3 +1,29 @@
+План реализации аутентификации
+Фаза 1: Фундамент (хеширование паролей)
+- Исправить баг в security/password.go: password := make([]byte, len(pass)) → password := []byte(pass)
+- Кодировать хеш в формат argon2id$memory$iterations$parallelism$salt$hash (base64), чтобы соль сохранялась вместе с хешем
+- Добавить метод Verify(hash, password) bool для проверки пароля
+- Обновить CreatUser чтобы хешировать пароль перед сохранением в БД
+Фаза 2: Session-based авторизация
+- Добавить GraphQL mutations: login(email, password), logout(token)
+- login: найти юзера по email → Verify пароль → создать запись в user_sessions → вернуть токен
+- logout: удалить запись из user_sessions
+- Создать Gin middleware AuthMiddleware — читает токен из Authorization: Bearer <token> → проверяет в user_sessions → кладёт user_id в context
+Фаза 3: JWT access tokens
+- Добавить github.com/golang-jwt/jwt/v5 в go.mod
+- При логине: создать JWT (access token, короткий TTL ~15мин) + refresh token (длинный TTL, хранится в user_sessions)
+- Добавить mutation refreshToken(refreshToken) — валидирует refresh token из БД, выдаёт новый JWT
+- Middleware: сначала проверяет JWT (быстро, без БД), если истёк — возвращает ошибку, клиент сам обновляет через refreshToken
+Фаза 4: Google OAuth
+- Добавить golang.org/x/oauth2 в go.mod
+- Создать endpoint GET /auth/google → редирект на Google consent
+- Создать callback GET /auth/google/callback → обмен code → получить email → найти/создать юзера → выдать JWT + refresh
+- Это REST endpoints (не GraphQL), потому что OAuth — это редирект-флоу
+Фаза 5: 2FA (TOTP)
+- Добавить github.com/pquerna/otp в go.mod
+- Mutation enable2FA → генерирует TOTP secret → сохраняет в totp_user_id → возвращает QR-код (base64)
+- Mutation confirm2FA(code) → проверяет код → ставит enabled=true
+- Логин меняется: если у юзера enabled=true → сначала вернуть requires2FA: true, затем mutation verify2FA(code, token) → проверить TOTP код → завершить логин
 
 go run github.com/pressly/goose/v3/cmd/goose@latest create categorie sql
 go run github.com/pressly/goose/v3/cmd/goose@latest -dir ./lib/migration/postgres postgres \

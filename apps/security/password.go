@@ -2,6 +2,7 @@ package security
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 
 	"golang.org/x/crypto/argon2"
@@ -25,28 +26,17 @@ func NewHashPassword() *PasswordHasher {
 	}
 }
 
-func RetnPapper() string {
-	return "aS123das1@%*&#!^s"
-}
-
 // (password []byte, salt []byte, time uint32, memory uint32, threads uint8, keyLen uint32) []byte
-func (h *PasswordHasher) Generate(pass string) ([]byte, error) {
-	password := make([]byte, len(pass))
+func (h *PasswordHasher) Generate(pass string) (string, error) {
+	password := []byte(pass)
 	salt := make([]byte, h.saltLength)
 
 	if _, err := rand.Read(salt); err != nil {
-		return password, fmt.Errorf("generate salt: %w", err)
+		return pass, fmt.Errorf("generate salt: %w", err)
 	}
-
 	hash := argon2.IDKey(password, salt, h.iterations, h.memory, h.parallelism, h.keyLength)
-	return hash, nil
+	rtndata := fmt.Sprintf("%s$%d$%d$%d$%s$%s", "argon2id", h.memory,
+		h.iterations, h.parallelism,
+		base64.StdEncoding.EncodeToString(salt), base64.StdEncoding.EncodeToString(hash))
+	return rtndata, nil
 }
-
-// func main() {
-// 	k := NewHashPassword()
-// 	l, err := k.Generate("testpass")
-// 	if err != nil {
-// 		panic("err")
-// 	}
-// 	fmt.Printf("%s", l)
-// }

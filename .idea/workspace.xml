@@ -5,11 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="91374b46-d85e-4141-9ff6-0c281d1819a8" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/sqldialects.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/sqldialects.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/cmd/server/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/apps/cmd/server/main.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/internal/config/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/apps/internal/config/config.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/internal/database/postgres.go" beforeDir="false" afterPath="$PROJECT_DIR$/apps/internal/database/postgres.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/graph/schema.resolvers.go" beforeDir="false" afterPath="$PROJECT_DIR$/apps/graph/schema.resolvers.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/internal/services/errors.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/internal/services/order.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/internal/services/product.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/internal/services/user.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/security/password.go" beforeDir="false" afterPath="$PROJECT_DIR$/apps/security/password.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/security/password_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/apps/security/password_test.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
