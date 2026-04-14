@@ -11,7 +11,7 @@
 - Создать Gin middleware AuthMiddleware — читает токен из Authorization: Bearer <token> → проверяет в user_sessions → кладёт user_id в context
 Фаза 3: JWT access tokens
 - Добавить github.com/golang-jwt/jwt/v5 в go.mod
-- При логине: создать JWT (access token, короткий TTL ~15мин) + refresh token (длинный TTL, хранится в user_sessions)
+- При логине: создать JWT (acceiss token, короткий TTL ~15мин) + refresh token (длинный TTL, хранится в user_sessions)
 - Добавить mutation refreshToken(refreshToken) — валидирует refresh token из БД, выдаёт новый JWT
 - Middleware: сначала проверяет JWT (быстро, без БД), если истёк — возвращает ошибку, клиент сам обновляет через refreshToken
 Фаза 4: Google OAuth

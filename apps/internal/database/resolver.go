@@ -3,7 +3,9 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/rrrr22wwww.com/cloudflow/graph/model"
 )
@@ -19,6 +21,55 @@ func CreatUser(r *sql.DB, ctx context.Context, user *model.User, name *string, e
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 	return nil
+}
+
+func GetUserCredentialsByEmail(r *sql.DB, ctx context.Context, email string) (string, string, error) {
+	var userID string
+	var hash string
+
+	err := r.QueryRowContext(ctx,
+		`SELECT id, password FROM users WHERE email = $1`,
+		email,
+	).Scan(&userID, &hash)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", "", sql.ErrNoRows
+		}
+
+		return "", "", fmt.Errorf("failed to get user credentials: %w", err)
+	}
+
+	return userID, hash, nil
+}
+
+func CreateUserSession(r *sql.DB, ctx context.Context, userID, token string, expiresAt time.Time) error {
+	_, err := r.ExecContext(ctx,
+		`INSERT INTO user_sessions (user_id, token, expires_at)
+		 VALUES ($1, $2, $3)`,
+		userID, token, expiresAt,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create user session: %w", err)
+	}
+
+	return nil
+}
+
+func DeleteUserSessionByToken(r *sql.DB, ctx context.Context, token string) (bool, error) {
+	res, err := r.ExecContext(ctx,
+		`DELETE FROM user_sessions WHERE token = $1`,
+		token,
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to delete user session: %w", err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	return rowsAffected > 0, nil
 }
 
 func CreateProduct(

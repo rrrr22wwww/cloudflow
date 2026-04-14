@@ -10,9 +10,9 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-type safeUnit struct {
-	hasher *PasswordHasher
-	buffer []byte
+type GuardHash struct {
+	Hasher *PasswordHasher
+	Buffer []byte
 }
 
 type PasswordHasher struct {
@@ -50,29 +50,33 @@ func newSaltLength(std uint32) func(h *PasswordHasher) {
 }
 func newKeyLength(std uint32) func(h *PasswordHasher) {
 	return func(h *PasswordHasher) { h.keyLength = std }
-}
 
-func (h *safeUnit) HashFromDB(pass string) (string, error) {
+}
+func (h *GuardHash) HashFromDB(pass string) (string, error) {
 	hash, err := h.Generate(pass)
 	if err != nil {
 		return "", fmt.Errorf("ErrorGenHash: %w", err)
 	}
-	storedHash := fmt.Sprintf("%s$%d$%d$%d$%s$%s", "argon2id", h.hasher.memory,
-		h.hasher.iterations, h.hasher.parallelism,
-		base64.StdEncoding.EncodeToString(h.buffer), base64.StdEncoding.EncodeToString(hash))
+	storedHash := fmt.Sprintf("%s$%d$%d$%d$%s$%s",
+		"argon2id",
+		h.Hasher.memory,
+		h.Hasher.iterations,
+		h.Hasher.parallelism,
+		base64.StdEncoding.EncodeToString(h.Buffer),
+		base64.StdEncoding.EncodeToString(hash))
 	return storedHash, nil
 }
 
 // (password []byte, salt []byte, time uint32, memory uint32, threads uint8, keyLen uint32) []byte
-func (h *safeUnit) Generate(pass string) ([]byte, error) {
+func (h *GuardHash) Generate(pass string) ([]byte, error) {
 	password := []byte(pass)
-	salt := make([]byte, h.hasher.saltLength)
+	salt := make([]byte, h.Hasher.saltLength)
 
 	if _, err := rand.Read(salt); err != nil {
 		return nil, fmt.Errorf("generate salt: %w", err)
 	}
-	hash := argon2.IDKey(password, salt, h.hasher.iterations, h.hasher.memory, h.hasher.parallelism, h.hasher.keyLength)
-	h.buffer = salt
+	hash := argon2.IDKey(password, salt, h.Hasher.iterations, h.Hasher.memory, h.Hasher.parallelism, h.Hasher.keyLength)
+	h.Buffer = salt
 	return hash, nil
 }
 
@@ -87,17 +91,18 @@ func fastAtoi(s string) *uint32 {
 func Verify(hash string, password string) (bool, error) {
 	parts := strings.Split(hash, "$")
 	if len(parts) < 6 {
-		return false, fmt.Errorf("error hash decod element < 6")
+		return false, fmt.Errorf("Verify: error hash decoding element(field < 6) ")
 	}
-	storedHash, err := base64.StdEncoding.DecodeString(parts[6])
-	unit := safeUnit{
-		hasher: NewHashPassword(newMemory(*fastAtoi(parts[0])),
-			newIterations(*fastAtoi(parts[1])),
-			newParallelism(uint8(*fastAtoi(parts[2]))),
-			newSaltLength(*fastAtoi(parts[3])),
-			newKeyLength(*fastAtoi(parts[4]))),
+	storedHash, err := base64.StdEncoding.DecodeString(parts[5])
+	salt, err := base64.StdEncoding.DecodeString(parts[4])
+	unit := GuardHash{
+		Hasher: NewHashPassword(
+			newMemory(*fastAtoi(parts[1])),
+			newIterations(*fastAtoi(parts[2])),
+			newParallelism(uint8(*fastAtoi(parts[3]))),
+		),
 	}
-	computedHash, err := unit.Generate(password)
+	computedHash := argon2.IDKey([]byte(password), salt, unit.Hasher.iterations, unit.Hasher.memory, unit.Hasher.parallelism, unit.Hasher.keyLength)
 
 	if err != nil {
 		return false, fmt.Errorf("error base64decodeString: %w", err)

@@ -11,13 +11,38 @@ import (
 
 	"github.com/rrrr22wwww.com/cloudflow/graph/model"
 	"github.com/rrrr22wwww.com/cloudflow/internal/database"
+	"github.com/rrrr22wwww.com/cloudflow/internal/services"
 )
+
+// Login is the resolver for the login field.
+func (r *mutationResolver) Login(ctx context.Context, email string, password string) (string, error) {
+	token, err := services.Login(ctx, r.DB, email, password)
+	if err != nil {
+		return "", fmt.Errorf("login: %w", err)
+	}
+
+	return token, nil
+}
+
+// Logout is the resolver for the logout field.
+func (r *mutationResolver) Logout(ctx context.Context, token string) (bool, error) {
+	ok, err := services.Logout(ctx, r.DB, token)
+	if err != nil {
+		return false, fmt.Errorf("logout: %w", err)
+	}
+
+	return ok, nil
+}
 
 // SetUser is the resolver for the setUser field.
 func (r *mutationResolver) SetUser(ctx context.Context, name string, email string, imgUser string, password string) (*model.User, error) {
 	user := &model.User{}
+	data, err := services.Registration(ctx, name, email, imgUser, password)
+	if err != nil {
+		return nil, fmt.Errorf("Err registration setuser: %w", err)
+	}
 
-	err := database.CreatUser(r.DB, ctx, user, &name, &email, &imgUser, &password)
+	err = database.CreatUser(r.DB, ctx, user, &(data.N), &(data.E), &(data.I), &(data.P))
 
 	if err != nil {
 		return nil, fmt.Errorf("Error query <SetUser> database: %w", err)

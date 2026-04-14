@@ -58,6 +58,8 @@ type Query {
 }
 
 type Mutation {
+    login(email: String!, password: String!): String!
+    logout(token: String!): Boolean!
     setUser(
         name: String!
         email: String!

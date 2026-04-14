@@ -44,9 +44,9 @@ func main() {
 	}))
 	r.POST("/query", gin.WrapH(srv))
 	r.GET("/", gin.WrapH(playground.Handler("GraphQL", "/query")))
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{"msg": "hi"})
-	})
+	// r.GET("/ping", func(c *gin.Context) {
+	// 	c.JSON(200, gin.H{"msg": "hi"})
+	// })
 	r.Run(":8080")
 }
 
