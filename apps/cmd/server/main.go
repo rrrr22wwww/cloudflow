@@ -1,8 +1,10 @@
 package main
 
 import (
+	_ "embed"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -13,7 +15,11 @@ import (
 	"github.com/rrrr22wwww.com/cloudflow/internal/database"
 	"github.com/rrrr22wwww.com/cloudflow/internal/logger"
 	"github.com/rrrr22wwww.com/cloudflow/internal/middleware"
+	"github.com/rrrr22wwww.com/cloudflow/internal/services"
 )
+
+//go:embed static/auth-test.html
+var authTestPage []byte
 
 func main() {
 	cfg, err := config.CreateConfig()
@@ -35,14 +41,43 @@ func main() {
 		panic(err)
 	}
 	defer db.Close()
+
+	jwtTTL := 24 * time.Hour
+	if cfg.Security.JWTTTL != "" {
+		parsedTTL, err := time.ParseDuration(cfg.Security.JWTTTL)
+		if err != nil {
+			slog.Error("Failed to parse JWT TTL", "error", err)
+			os.Exit(1)
+		}
+		jwtTTL = parsedTTL
+	}
+
+	if cfg.Security.JWTSecret == "" {
+		slog.Error("JWT_SECRET is empty")
+		os.Exit(1)
+	}
+
+	store := services.NewMemorySessionStore(db, jwtTTL)
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(middleware.SlogLogger(), middleware.SlogRecovery())
 
 	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{
-		Resolvers: &graph.Resolver{DB: db},
+		Resolvers: &graph.Resolver{
+			DB:        db,
+			Store:     store,
+			JWTSecret: cfg.Security.JWTSecret,
+			JWTTTL:    jwtTTL,
+		},
 	}))
-	r.POST("/query", gin.WrapH(srv))
+	r.POST("/query", middleware.Authorization(store, cfg.Security.JWTSecret), gin.WrapH(srv))
+	r.GET("/public/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "public api stub"})
+	})
+	r.GET("/auth-test", func(c *gin.Context) {
+		c.Data(200, "text/html; charset=utf-8", authTestPage)
+	})
 	r.GET("/", gin.WrapH(playground.Handler("GraphQL", "/query")))
 	// r.GET("/ping", func(c *gin.Context) {
 	// 	c.JSON(200, gin.H{"msg": "hi"})

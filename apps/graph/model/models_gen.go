@@ -2,6 +2,11 @@
 
 package model
 
+type AuthPayload struct {
+	Token string `json:"token"`
+	User  *User  `json:"user"`
+}
+
 type Category struct {
 	ID       int32  `json:"id"`
 	Name     string `json:"name"`

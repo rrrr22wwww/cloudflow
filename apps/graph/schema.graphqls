@@ -2,6 +2,11 @@
 #
 # https://gqlgen.com/getting-started/
 
+type AuthPayload {
+    token: String!
+    user: User!
+}
+
 type User {
     id: ID!
     name: String!
@@ -58,14 +63,14 @@ type Query {
 }
 
 type Mutation {
-    login(email: String!, password: String!): String!
-    logout(token: String!): Boolean!
-    setUser(
+    login(email: String!, password: String!): AuthPayload!
+    register(
         name: String!
         email: String!
         img_user: String!
         password: String!
-    ): User
+    ): AuthPayload!
+    logout: Boolean!
     setProduct(
         sellerID: ID!
         categoryID: Int!

@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cloudflow Auth Test</title>
+  <style>
+    body { font-family: sans-serif; margin: 16px; }
+    fieldset { margin-bottom: 12px; }
+    input, textarea, button { margin: 4px 0; width: 100%; box-sizing: border-box; }
+    textarea { min-height: 120px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #f5f5f5; padding: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Cloudflow API Test</h2>
+  <p>Проверка register/login/logout, защищенных GraphQL запросов и public ping.</p>
+
+  <fieldset>
+    <legend>Токен</legend>
+    <input id="token" placeholder="JWT token" />
+    <button id="saveToken">Сохранить токен</button>
+    <button id="clearToken">Очистить токен</button>
+  </fieldset>
+
+  <div class="row">
+    <fieldset>
+      <legend>Регистрация (auto-login)</legend>
+      <input id="regName" placeholder="name" value="testuser01" />
+      <input id="regEmail" placeholder="email" value="testuser01@example.com" />
+      <input id="regImg" placeholder="img_user" value="https://example.com/a.png" />
+      <input id="regPassword" placeholder="password" value="12345678" />
+      <button id="registerBtn">Register</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Логин</legend>
+      <input id="loginEmail" placeholder="email" value="testuser01@example.com" />
+      <input id="loginPassword" placeholder="password" value="12345678" />
+      <button id="loginBtn">Login</button>
+      <button id="logoutBtn">Logout (требует токен)</button>
+    </fieldset>
+  </div>
+
+  <div class="row">
+    <fieldset>
+      <legend>Быстрые защищенные запросы</legend>
+      <button id="getUsersBtn">getUsers</button>
+      <button id="getProductsBtn">getProducts</button>
+      <button id="setCategoryBtn">setCategory</button>
+      <button id="setProductBtn">setProduct</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Публичный endpoint</legend>
+      <button id="pingBtn">GET /public/ping</button>
+    </fieldset>
+  </div>
+
+  <fieldset>
+    <legend>Произвольный GraphQL</legend>
+    <textarea id="query">query { getUsers { id name email role } }</textarea>
+    <button id="runQueryBtn">Выполнить /query</button>
+  </fieldset>
+
+  <h3>Ответ</h3>
+  <pre id="output">Готово.</pre>
+
+  <script>
+    const tokenInput = document.getElementById('token');
+    const out = document.getElementById('output');
+
+    tokenInput.value = localStorage.getItem('cf_token') || '';
+
+    function print(data) {
+      out.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    }
+
+    function saveToken(token) {
+      tokenInput.value = token || '';
+      if (token) {
+        localStorage.setItem('cf_token', token);
+      } else {
+        localStorage.removeItem('cf_token');
+      }
+    }
+
+    async function gql(query, variables) {
+      const token = tokenInput.value.trim();
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+
+      const res = await fetch('/query', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query, variables: variables || {} })
+      });
+
+      let payload;
+      try {
+        payload = await res.json();
+      } catch {
+        payload = await res.text();
+      }
+
+      print({ status: res.status, ok: res.ok, payload });
+      return { res, payload };
+    }
+
+    document.getElementById('saveToken').onclick = () => {
+      saveToken(tokenInput.value.trim());
+      print('Токен сохранен');
+    };
+
+    document.getElementById('clearToken').onclick = () => {
+      saveToken('');
+      print('Токен очищен');
+    };
+
+    document.getElementById('registerBtn').onclick = async () => {
+      const q = `
+        mutation Register($name: String!, $email: String!, $img: String!, $password: String!) {
+          register(name: $name, email: $email, img_user: $img, password: $password) {
+            token
+            user { id name email role }
+          }
+        }
+      `;
+      const vars = {
+        name: document.getElementById('regName').value,
+        email: document.getElementById('regEmail').value,
+        img: document.getElementById('regImg').value,
+        password: document.getElementById('regPassword').value
+      };
+      const { payload } = await gql(q, vars);
+      const token = payload && payload.data && payload.data.register && payload.data.register.token;
+      if (token) saveToken(token);
+    };
+
+    document.getElementById('loginBtn').onclick = async () => {
+      const q = `
+        mutation Login($email: String!, $password: String!) {
+          login(email: $email, password: $password) {
+            token
+            user { id name email role }
+          }
+        }
+      `;
+      const vars = {
+        email: document.getElementById('loginEmail').value,
+        password: document.getElementById('loginPassword').value
+      };
+      const { payload } = await gql(q, vars);
+      const token = payload && payload.data && payload.data.login && payload.data.login.token;
+      if (token) saveToken(token);
+    };
+
+    document.getElementById('logoutBtn').onclick = async () => {
+      const q = `mutation { logout }`;
+      await gql(q);
+    };
+
+    document.getElementById('getUsersBtn').onclick = async () => {
+      await gql(`query { getUsers { id name email role } }`);
+    };
+
+    document.getElementById('getProductsBtn').onclick = async () => {
+      await gql(`query { getProducts { id name seller_id category_id price status } }`);
+    };
+
+    document.getElementById('setCategoryBtn').onclick = async () => {
+      await gql(`mutation { setCategory(name: "test-category", parentID: null) { id name parent_id } }`);
+    };
+
+    document.getElementById('setProductBtn').onclick = async () => {
+      const sellerID = prompt('Введите sellerID (uuid):');
+      if (!sellerID) return;
+      await gql(`mutation SetProduct($sellerID: ID!) {
+        setProduct(
+          sellerID: $sellerID,
+          categoryID: 1,
+          name: "test-product",
+          description: "test",
+          price: 100,
+          rating: 5,
+          tags: ["one", "two"]
+        ) {
+          id name seller_id category_id price status
+        }
+      }`, { sellerID });
+    };
+
+    document.getElementById('pingBtn').onclick = async () => {
+      const res = await fetch('/public/ping');
+      const payload = await res.json();
+      print({ status: res.status, ok: res.ok, payload });
+    };
+
+    document.getElementById('runQueryBtn').onclick = async () => {
+      await gql(document.getElementById('query').value);
+    };
+  </script>
+</body>
+</html>

@@ -100,6 +100,28 @@ func CreateProduct(
 	return nil
 }
 
+func GetUserSessionByToken(r *sql.DB, ctx context.Context, token string) (string, string, time.Time, error) {
+	var userID string
+	var role string
+	var expiresAt time.Time
+
+	err := r.QueryRowContext(ctx,
+		`SELECT us.user_id, u.role, us.expires_at
+		 FROM user_sessions us
+		 JOIN users u ON u.id = us.user_id
+		 WHERE us.token = $1 AND us.expires_at > NOW()`,
+		token,
+	).Scan(&userID, &role, &expiresAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", "", time.Time{}, fmt.Errorf("session not found or expired")
+		}
+		return "", "", time.Time{}, fmt.Errorf("failed to get session: %w", err)
+	}
+
+	return userID, role, expiresAt, nil
+}
+
 func CreateCategory(r *sql.DB, ctx context.Context, category *model.Category, name string, parentID *int32) error {
 	err := r.QueryRowContext(ctx,
 		`INSERT INTO categories (name, parent_id)

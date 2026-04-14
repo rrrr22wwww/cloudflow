@@ -15,39 +15,44 @@ import (
 )
 
 // Login is the resolver for the login field.
-func (r *mutationResolver) Login(ctx context.Context, email string, password string) (string, error) {
-	token, err := services.Login(ctx, r.DB, email, password)
+func (r *mutationResolver) Login(ctx context.Context, email string, password string) (*model.AuthPayload, error) {
+	token, user, err := services.Login(ctx, r.DB, r.Store, r.JWTSecret, r.JWTTTL, email, password)
 	if err != nil {
-		return "", fmt.Errorf("login: %w", err)
+		return nil, fmt.Errorf("login: %w", err)
 	}
 
-	return token, nil
+	return &model.AuthPayload{
+		Token: token,
+		User:  user,
+	}, nil
+}
+
+// Register is the resolver for the register field.
+func (r *mutationResolver) Register(ctx context.Context, name string, email string, imgUser string, password string) (*model.AuthPayload, error) {
+	token, user, err := services.Registration(ctx, r.DB, r.Store, r.JWTSecret, r.JWTTTL, name, email, imgUser, password)
+	if err != nil {
+		return nil, fmt.Errorf("register: %w", err)
+	}
+
+	return &model.AuthPayload{
+		Token: token,
+		User:  user,
+	}, nil
 }
 
 // Logout is the resolver for the logout field.
-func (r *mutationResolver) Logout(ctx context.Context, token string) (bool, error) {
-	ok, err := services.Logout(ctx, r.DB, token)
+func (r *mutationResolver) Logout(ctx context.Context) (bool, error) {
+	token, err := services.GetTokenFromContext(ctx)
+	if err != nil {
+		return false, fmt.Errorf("logout: %w", err)
+	}
+
+	ok, err := services.Logout(ctx, r.Store, token)
 	if err != nil {
 		return false, fmt.Errorf("logout: %w", err)
 	}
 
 	return ok, nil
-}
-
-// SetUser is the resolver for the setUser field.
-func (r *mutationResolver) SetUser(ctx context.Context, name string, email string, imgUser string, password string) (*model.User, error) {
-	user := &model.User{}
-	data, err := services.Registration(ctx, name, email, imgUser, password)
-	if err != nil {
-		return nil, fmt.Errorf("Err registration setuser: %w", err)
-	}
-
-	err = database.CreatUser(r.DB, ctx, user, &(data.N), &(data.E), &(data.I), &(data.P))
-
-	if err != nil {
-		return nil, fmt.Errorf("Error query <SetUser> database: %w", err)
-	}
-	return user, nil
 }
 
 // SetProduct is the resolver for the setProduct field.
@@ -106,3 +111,26 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func (r *mutationResolver) SetUser(ctx context.Context, name string, email string, imgUser string, password string) (*model.User, error) {
+	user := &model.User{}
+	data, err := services.Registration(ctx, name, email, imgUser, password)
+	if err != nil {
+		return nil, fmt.Errorf("Err registration setuser: %w", err)
+	}
+
+	err = database.CreatUser(r.DB, ctx, user, &(data.N), &(data.E), &(data.I), &(data.P))
+
+	if err != nil {
+		return nil, fmt.Errorf("Error query <SetUser> database: %w", err)
+	}
+	return user, nil
+}
+*/

@@ -1,12 +1,15 @@
 package graph
 
-import "database/sql"
+import (
+	"database/sql"
+	"time"
 
-// This file will not be regenerated automatically.
-//
-// It serves as dependency injection for your app, add any dependencies you require
-// here.
+	"github.com/rrrr22wwww.com/cloudflow/internal/services"
+)
 
 type Resolver struct {
-	DB *sql.DB
+	DB        *sql.DB
+	Store     services.SessionStore
+	JWTSecret string
+	JWTTTL    time.Duration
 }

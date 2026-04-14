@@ -28,6 +28,8 @@ type serverconfig struct {
 
 // Для тестировки, замена - KMS (значения для генерация секретов)
 type securityconfig struct {
+	JWTSecret string
+	JWTTTL    string
 }
 
 type Config struct {
@@ -81,6 +83,9 @@ func CreateConfig() (*Config, error) {
 			Port:  (*envs)["SERVER_PORT"],
 			Lpath: (*envs)["LOG_PATH"],
 		},
-		Security: &securityconfig{},
+		Security: &securityconfig{
+			JWTSecret: (*envs)["JWT_SECRET"],
+			JWTTTL:    (*envs)["JWT_TTL"],
+		},
 	}, nil
 }
