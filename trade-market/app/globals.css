@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 220 13% 9%;
+  --surface: 222 14% 12%;
+  --surface-raised: 222 13% 15%;
+  --surface-overlay: 222 12% 18%;
+  --foreground: 220 9% 88%;
+  --muted-foreground: 220 9% 50%;
+  --border: 220 11% 20%;
+  --brand: 217 91% 60%;
+  --brand-muted: 217 30% 22%;
+  --gain: 142 69% 52%;
+  --gain-muted: 142 30% 18%;
+  --loss: 0 72% 56%;
+  --loss-muted: 0 30% 18%;
+}
+
+.dark {
+  --background: 220 13% 9%;
+  --surface: 222 14% 12%;
+  --surface-raised: 222 13% 15%;
+  --surface-overlay: 222 12% 18%;
+  --foreground: 220 9% 88%;
+  --muted-foreground: 220 9% 50%;
+  --border: 220 11% 20%;
+  --brand: 217 91% 60%;
+  --brand-muted: 217 30% 22%;
+  --gain: 142 69% 52%;
+  --gain-muted: 142 30% 18%;
+  --loss: 0 72% 56%;
+  --loss-muted: 0 30% 18%;
+}
+
+* {
+  @apply border-border;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  @apply bg-background text-foreground;
+  background-image: radial-gradient(circle, hsl(var(--border) / 0.5) 1px, transparent 1px);
+  background-size: 24px 24px;
+  text-rendering: optimizeLegibility;
+}
+
+.section-kicker {
+  @apply font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground;
+}
+
+.glass {
+  background-color: hsl(var(--background) / 0.8);
+  backdrop-filter: blur(10px);
+}

@@ -40,7 +40,7 @@ type Config struct {
 
 func loadEnvFile() (*map[string]string, error) {
 	dir, err := os.Getwd()
-	dir = "G:/cloudflow/apps/.env.development"
+	dir = "/Users/root1/Desktop/cloudflow/.env.development"
 	if err != nil {
 		log.Fatal("The directory cannot be determined")
 	}
