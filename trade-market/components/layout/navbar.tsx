@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Search, UserRound } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
-import { buttonClasses, Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { AuthModal } from "@/components/layout/auth-modal";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/marketplace", label: "Marketplace" },
-  { href: "/marketplace#seller", label: "Seller" },
-  { href: "/marketplace#account", label: "Account" },
+  { href: "/", label: "Overview" },
   { href: "/docs", label: "Docs" },
 ];
 
@@ -60,20 +60,10 @@ export function Navbar() {
           <Button variant="ghost" size="sm" aria-label="Search marketplace">
             <Search className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="sm" aria-label="Notifications">
+          {/*<Button variant="ghost" size="sm" aria-label="Notifications">
             <Bell className="h-3.5 w-3.5" />
-          </Button>
-          <Link
-            href="/marketplace#account"
-            className={buttonClasses({
-              variant: "primary",
-              size: "sm",
-              className: "gap-1.5",
-            })}
-          >
-            <UserRound className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Open Account</span>
-          </Link>
+          </Button>*/}
+          <AuthModal />
         </div>
       </nav>
     </header>

@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { Server, ShieldCheck, UserRoundCheck, Wifi } from "lucide-react";
+import { Server, ShieldCheck, UserRound, Wifi } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 const features = [
   {
-    icon: UserRoundCheck,
+    icon: UserRound,
     title: "Auth-ready",
     text: "",
   },

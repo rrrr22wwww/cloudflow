@@ -22,14 +22,24 @@ export const metadata: Metadata = {
   description: "Server marketplace integrated with Cloudflow API operations",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${plexSans.variable} ${plexMono.variable} dark`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${plexSans.variable} ${plexMono.variable} dark`}
+    >
       <body className="font-sans antialiased">
         <ThemeProvider>
           <TickerBanner />
           <Navbar />
-          <main className="mx-auto w-full max-w-[1400px] px-4 pb-16 pt-6 md:px-6">{children}</main>
+          <main className="mx-auto w-full max-w-[1400px] px-4 pb-16 pt-6 md:px-6">
+            {children}
+          </main>
         </ThemeProvider>
       </body>
     </html>
