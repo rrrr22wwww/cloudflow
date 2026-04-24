@@ -13,6 +13,12 @@ type Category struct {
 	ParentID *int32 `json:"parent_id,omitempty"`
 }
 
+type EmailLoginCodePayload struct {
+	ChallengeID string `json:"challenge_id"`
+	Email       string `json:"email"`
+	ExpiresIn   int32  `json:"expires_in"`
+}
+
 type Mutation struct {
 }
 
@@ -33,20 +39,50 @@ type OrderItem struct {
 }
 
 type Product struct {
-	ID          string    `json:"id"`
-	SellerID    string    `json:"seller_id"`
-	CategoryID  *int32    `json:"category_id,omitempty"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Price       float64   `json:"price"`
-	Rating      *int32    `json:"rating,omitempty"`
-	Status      *string   `json:"status,omitempty"`
-	Tags        []*string `json:"tags,omitempty"`
-	CreatedAt   string    `json:"created_at"`
-	UpdatedAt   string    `json:"updated_at"`
+	ID           string    `json:"id"`
+	SellerID     string    `json:"seller_id"`
+	CategoryID   *int32    `json:"category_id,omitempty"`
+	Name         string    `json:"name"`
+	Description  string    `json:"description"`
+	Price        float64   `json:"price"`
+	Rating       *int32    `json:"rating,omitempty"`
+	Status       *string   `json:"status,omitempty"`
+	PreviewImage *string   `json:"preview_image,omitempty"`
+	Tags         []*string `json:"tags,omitempty"`
+	CreatedAt    string    `json:"created_at"`
+	UpdatedAt    string    `json:"updated_at"`
+}
+
+type PurchasePayload struct {
+	Order   *Order   `json:"order"`
+	Product *Product `json:"product"`
+	Buyer   *User    `json:"buyer"`
 }
 
 type Query struct {
+}
+
+type SellerReview struct {
+	ID        int32   `json:"id"`
+	SellerID  string  `json:"seller_id"`
+	BuyerID   string  `json:"buyer_id"`
+	ProductID string  `json:"product_id"`
+	Rating    int32   `json:"rating"`
+	Comment   *string `json:"comment,omitempty"`
+	CreatedAt *string `json:"created_at,omitempty"`
+	UpdatedAt *string `json:"updated_at,omitempty"`
+}
+
+type ServerAccess struct {
+	ProductID       string  `json:"product_id"`
+	IPAddress       string  `json:"ip_address"`
+	SSHUsername     string  `json:"ssh_username"`
+	SSHPassword     *string `json:"ssh_password,omitempty"`
+	SSHPrivateKey   *string `json:"ssh_private_key,omitempty"`
+	Port            *int32  `json:"port,omitempty"`
+	ConnectionNotes *string `json:"connection_notes,omitempty"`
+	CreatedAt       *string `json:"created_at,omitempty"`
+	UpdatedAt       *string `json:"updated_at,omitempty"`
 }
 
 type User struct {

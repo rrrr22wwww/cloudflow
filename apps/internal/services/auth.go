@@ -13,35 +13,9 @@ import (
 )
 
 func Login(ctx context.Context, db *sql.DB, store SessionStore, jwtSecret string, jwtTTL time.Duration, email, password string) (string, *model.User, error) {
-	if email == "" || password == "" {
-		return "", nil, fmt.Errorf("invalid credentials")
-	}
-
-	userID, storedHash, err := database.GetUserCredentialsByEmail(db, ctx, email)
+	userID, user, role, err := verifyCredentials(ctx, db, email, password)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", nil, fmt.Errorf("invalid credentials")
-		}
-		return "", nil, fmt.Errorf("get user by email: %w", err)
-	}
-
-	ok, err := security.Verify(storedHash, password)
-	if err != nil || !ok {
-		return "", nil, fmt.Errorf("invalid credentials")
-	}
-
-	users, err := database.GetUsers(db, ctx, nil, &email, nil)
-	if err != nil {
-		return "", nil, fmt.Errorf("get user: %w", err)
-	}
-	if len(users) == 0 {
-		return "", nil, fmt.Errorf("invalid credentials")
-	}
-
-	user := users[0]
-	role := "User"
-	if user.Role != nil {
-		role = *user.Role
+		return "", nil, err
 	}
 
 	token, err := issueSessionToken(ctx, store, jwtSecret, jwtTTL, userID, role)
@@ -50,6 +24,105 @@ func Login(ctx context.Context, db *sql.DB, store SessionStore, jwtSecret string
 	}
 
 	return token, user, nil
+}
+
+type EmailLoginCodeRequest struct {
+	ChallengeID string
+	Email       string
+	ExpiresIn   int
+}
+
+func RequestEmailLoginCode(ctx context.Context, db *sql.DB, otpStore *EmailOTPStore, sender EmailSender, email, password string) (*EmailLoginCodeRequest, error) {
+	if otpStore == nil {
+		return nil, fmt.Errorf("email otp store is not configured")
+	}
+	if sender == nil {
+		return nil, ErrEmailSenderNotConfigured
+	}
+
+	userID, user, role, err := verifyCredentials(ctx, db, email, password)
+	if err != nil {
+		return nil, err
+	}
+
+	challengeID, code, expiresIn, err := otpStore.Create(userID, user.Email, role)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := sender.SendLoginCode(ctx, user.Email, code); err != nil {
+		return nil, err
+	}
+
+	return &EmailLoginCodeRequest{
+		ChallengeID: challengeID,
+		Email:       MaskEmail(user.Email),
+		ExpiresIn:   expiresIn,
+	}, nil
+}
+
+func VerifyEmailLoginCode(ctx context.Context, db *sql.DB, store SessionStore, otpStore *EmailOTPStore, jwtSecret string, jwtTTL time.Duration, challengeID, code string) (string, *model.User, error) {
+	if otpStore == nil {
+		return "", nil, fmt.Errorf("email otp store is not configured")
+	}
+	if challengeID == "" || code == "" {
+		return "", nil, fmt.Errorf("challenge_id and code are required")
+	}
+
+	challenge, err := otpStore.Verify(challengeID, code)
+	if err != nil {
+		return "", nil, err
+	}
+
+	users, err := database.GetUsers(db, ctx, nil, nil, &challenge.UserID)
+	if err != nil {
+		return "", nil, fmt.Errorf("get user: %w", err)
+	}
+	if len(users) == 0 {
+		return "", nil, fmt.Errorf("invalid 2fa challenge")
+	}
+
+	token, err := issueSessionToken(ctx, store, jwtSecret, jwtTTL, challenge.UserID, challenge.Role)
+	if err != nil {
+		return "", nil, fmt.Errorf("generate token: %w", err)
+	}
+
+	return token, users[0], nil
+}
+
+func verifyCredentials(ctx context.Context, db *sql.DB, email, password string) (string, *model.User, string, error) {
+	if email == "" || password == "" {
+		return "", nil, "", fmt.Errorf("invalid credentials")
+	}
+
+	userID, storedHash, err := database.GetUserCredentialsByEmail(db, ctx, email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil, "", fmt.Errorf("invalid credentials")
+		}
+		return "", nil, "", fmt.Errorf("get user by email: %w", err)
+	}
+
+	ok, err := security.Verify(storedHash, password)
+	if err != nil || !ok {
+		return "", nil, "", fmt.Errorf("invalid credentials")
+	}
+
+	users, err := database.GetUsers(db, ctx, nil, &email, nil)
+	if err != nil {
+		return "", nil, "", fmt.Errorf("get user: %w", err)
+	}
+	if len(users) == 0 {
+		return "", nil, "", fmt.Errorf("invalid credentials")
+	}
+
+	user := users[0]
+	role := "User"
+	if user.Role != nil {
+		role = *user.Role
+	}
+
+	return userID, user, role, nil
 }
 
 func Registration(ctx context.Context, db *sql.DB, store SessionStore, jwtSecret string, jwtTTL time.Duration, name, email, imgUser, password string) (string, *model.User, error) {

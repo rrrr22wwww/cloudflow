@@ -6,11 +6,16 @@ export type MarketplaceItem = {
   description: string;
   category: string;
   imageUrl: string;
+  previewImage?: string;
   sellerId: string;
   price: number;
   rating: number;
-  players: number;
-  capacity: number;
+  cpu: string;
+  ram: string;
+  disk: string;
+  region: string;
+  traffic: string;
+  os: string;
   tags: string[];
   createdAt: string;
   updatedAt: string;

@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { CLOUD_GQL, type CloudflowAuthPayload, CloudflowApiError, cloudflowGraphql } from "@/lib/cloudflow-api";
+import {
+  CLOUD_GQL,
+  type CloudflowAuthPayload,
+  CloudflowApiError,
+  cloudflowGraphql,
+  isCloudflowAuthPayload,
+} from "@/lib/cloudflow-api";
 
 export async function POST(request: Request) {
   try {
@@ -24,7 +30,12 @@ export async function POST(request: Request) {
       password: body.password,
     });
 
-    return NextResponse.json(payload.data?.login ?? null);
+    const session = payload.data?.login;
+    if (!isCloudflowAuthPayload(session)) {
+      return NextResponse.json({ message: "Invalid email/login or password" }, { status: 401 });
+    }
+
+    return NextResponse.json(session);
   } catch (error) {
     if (error instanceof CloudflowApiError) {
       return NextResponse.json({ message: error.message, payload: error.payload }, { status: error.status || 500 });

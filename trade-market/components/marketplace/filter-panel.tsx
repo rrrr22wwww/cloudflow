@@ -33,7 +33,7 @@ export function MarketplaceFilterPanel({
         label="Search"
         value={search}
         onChange={onSearchChange}
-        placeholder="Minecraft, Rust, RP..."
+        placeholder="..."
         className="h-9 px-2"
         labelClassName="grid gap-1 text-xs uppercase tracking-wider text-muted-foreground"
       />

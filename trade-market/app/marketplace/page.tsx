@@ -12,18 +12,18 @@ import type {
   MarketplaceResponse,
   SortTab,
 } from "@/components/marketplace/types";
-
-const TOKEN_KEY = "trade_market_cloudflow_token";
+import { AUTH_EVENT, TOKEN_KEY, getStoredSession } from "@/lib/auth-session";
 
 function getStoredToken() {
   if (typeof window === "undefined") {
     return "";
   }
-  return window.localStorage.getItem(TOKEN_KEY) ?? "";
+  return getStoredSession().token;
 }
 
 export default function MarketplacePage() {
-  const [token, setToken] = useState(() => getStoredToken());
+  const [token, setToken] = useState("");
+  const [sessionReady, setSessionReady] = useState(false);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All Servers");
   const [tab, setTab] = useState<SortTab>("popular");
@@ -39,9 +39,13 @@ export default function MarketplacePage() {
   const activeCount = data?.total ?? 0;
 
   useEffect(() => {
+    if (!sessionReady) {
+      return;
+    }
+
     if (!token) {
       setData(null);
-      setError("JWT required: open Account flow and paste token, then save.");
+      setError("JWT required: sign in or create an account to browse servers.");
       return;
     }
 
@@ -99,14 +103,17 @@ export default function MarketplacePage() {
       cancelled = true;
       controller.abort();
     };
-  }, [token, search, category, tab, minPrice, maxPrice]);
+  }, [token, sessionReady, search, category, tab, minPrice, maxPrice]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
 
-    const syncToken = () => setToken(getStoredToken());
+    const syncToken = () => {
+      setToken(getStoredToken());
+      setSessionReady(true);
+    };
     const onStorage = (event: StorageEvent) => {
       if (event.key === TOKEN_KEY) {
         syncToken();
@@ -114,18 +121,13 @@ export default function MarketplacePage() {
     };
     const onAuthEvent = () => syncToken();
 
+    syncToken();
     window.addEventListener("storage", onStorage);
-    window.addEventListener(
-      "cloudflow-auth-updated",
-      onAuthEvent as EventListener,
-    );
+    window.addEventListener(AUTH_EVENT, onAuthEvent as EventListener);
 
     return () => {
       window.removeEventListener("storage", onStorage);
-      window.removeEventListener(
-        "cloudflow-auth-updated",
-        onAuthEvent as EventListener,
-      );
+      window.removeEventListener(AUTH_EVENT, onAuthEvent as EventListener);
     };
   }, []);
 
@@ -167,7 +169,7 @@ export default function MarketplacePage() {
             />
 
             <div className="px-3 py-2 text-xs text-muted-foreground">
-              {loading ? "Loading..." : `${activeCount} servers found`}{" "}
+              {loading || !sessionReady ? "Loading..." : `${activeCount} servers found`}{" "}
               {error ? `· ${error}` : ""}
             </div>
 

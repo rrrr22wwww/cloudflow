@@ -12,4 +12,6 @@ type Resolver struct {
 	Store     services.SessionStore
 	JWTSecret string
 	JWTTTL    time.Duration
+	EmailOTP  *services.EmailOTPStore
+	Email     services.EmailSender
 }

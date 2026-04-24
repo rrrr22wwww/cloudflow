@@ -7,6 +7,18 @@ type AuthPayload {
     user: User!
 }
 
+type PurchasePayload {
+    order: Order!
+    product: Product!
+    buyer: User!
+}
+
+type EmailLoginCodePayload {
+    challenge_id: ID!
+    email: String!
+    expires_in: Int!
+}
+
 type User {
     id: ID!
     name: String!
@@ -15,6 +27,29 @@ type User {
     role: String
     rating: Int
     balance: Float # numeric в БД
+    created_at: String
+    updated_at: String
+}
+
+type ServerAccess {
+    product_id: ID!
+    ip_address: String!
+    ssh_username: String!
+    ssh_password: String
+    ssh_private_key: String
+    port: Int
+    connection_notes: String
+    created_at: String
+    updated_at: String
+}
+
+type SellerReview {
+    id: Int!
+    seller_id: ID!
+    buyer_id: ID!
+    product_id: ID!
+    rating: Int!
+    comment: String
     created_at: String
     updated_at: String
 }
@@ -28,6 +63,7 @@ type Product {
     price: Float! # numeric в БД
     rating: Int # integer в БД
     status: String
+    preview_image: String
     tags: [String] # Потребует JOIN при запросе
     created_at: String!
     updated_at: String!
@@ -56,14 +92,20 @@ type OrderItem {
 }
 
 type Query {
+    me: User
     getUsers(name: String, email: String, id: ID): [User]
     getProducts(name: String, id: ID, seller_id: ID): [Product]
     getOrders(buyer_id: ID, status: String): [Order]
+    getPurchasedProducts(buyer_id: ID): [Product]
+    getProductAccess(productID: ID!): ServerAccess
+    getSellerReviews(seller_id: ID): [SellerReview]
     getCategories: [Category]
 }
 
 type Mutation {
     login(email: String!, password: String!): AuthPayload!
+    requestEmailLoginCode(email: String!, password: String!): EmailLoginCodePayload!
+    verifyEmailLoginCode(challenge_id: ID!, code: String!): AuthPayload!
     register(
         name: String!
         email: String!
@@ -71,14 +113,49 @@ type Mutation {
         password: String!
     ): AuthPayload!
     logout: Boolean!
+    setUser(
+        id: ID
+        name: String
+        email: String
+        img_user: String
+        role: String
+        rating: Int
+        balance: Float
+    ): User
+    deleteUser(id: ID!): Boolean!
     setProduct(
         sellerID: ID!
-        categoryID: Int!
+        categoryID: Int
         name: String!
         description: String!
-        price: Int!
-        rating: Float!
+        price: Float!
+        rating: Int
         tags: [String]!
     ): Product
+    updateProduct(
+        id: ID!
+        categoryID: Int
+        name: String
+        description: String
+        price: Float
+        rating: Int
+        status: String
+        tags: [String]
+    ): Product
+    topUpBalance(amount: Float!): User!
+    purchaseProduct(productID: ID!, rating: Int, comment: String): PurchasePayload!
+    setProductAccess(
+        productID: ID!
+        ip_address: String!
+        ssh_username: String!
+        ssh_password: String
+        ssh_private_key: String
+        port: Int
+        connection_notes: String
+    ): ServerAccess!
+    setProductPreviewImage(productID: ID!, file_name: String!): Product!
+    deleteProduct(id: ID!): Boolean!
     setCategory(name: String!, parentID: Int): Category
+    updateCategory(id: Int!, name: String, parentID: Int): Category
+    deleteCategory(id: Int!): Boolean!
 }

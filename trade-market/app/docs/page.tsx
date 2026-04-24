@@ -3,10 +3,18 @@ import { Card } from "@/components/ui/card";
 const publicOps = ["POST /query: login", "POST /query: register", "GET /public/ping", "GET / (GraphQL Playground)"];
 const protectedOps = [
   "POST /query: logout",
+  "POST /query: me",
   "POST /query: getProducts",
   "POST /query: setProduct",
-  "POST /query: getUsers (backend available, UI not used in trade-market)",
-  "POST /query: setCategory (backend available, UI not used in trade-market)",
+  "POST /query: updateProduct",
+  "POST /query: deleteProduct",
+  "POST /query: getUsers",
+  "POST /query: setUser",
+  "POST /query: deleteUser",
+  "POST /query: getCategories",
+  "POST /query: setCategory",
+  "POST /query: updateCategory",
+  "POST /query: deleteCategory",
 ];
 
 export default function DocsPage() {
@@ -17,8 +25,8 @@ export default function DocsPage() {
       <Card className="p-6">
         <h1 className="mb-3 font-mono text-2xl uppercase tracking-wide">Trade Market Integration Notes</h1>
         <p className="text-sm text-muted-foreground">
-          В `trade-market` реализованы только сценарии, которые подтверждены в `apps/API_SHORT.md`:
-          login/register/logout/getProducts/setProduct/ping.
+          `trade-market` now exposes the operational CloudFlow surface from `apps/API_SHORT.md`,
+          including auth, listing management, category management, and user management.
         </p>
       </Card>
 

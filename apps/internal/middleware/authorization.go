@@ -15,8 +15,10 @@ import (
 )
 
 var publicMutationFields = map[string]struct{}{
-	"login":    {},
-	"register": {},
+	"login":                 {},
+	"register":              {},
+	"requestEmailLoginCode": {},
+	"verifyEmailLoginCode":  {},
 }
 
 type graphQLRequest struct {

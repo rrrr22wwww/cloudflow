@@ -8,7 +8,7 @@ export interface TickerRow {
   change24h: number;
 }
 
-export function useTicker(pollMs = 6000) {
+export function useTicker(pollMs = 6 * 10 ** 4) {
   const [items, setItems] = useState<TickerRow[]>([]);
 
   useEffect(() => {

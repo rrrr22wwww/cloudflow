@@ -58,6 +58,14 @@ func main() {
 	}
 
 	store := services.NewMemorySessionStore(db, jwtTTL)
+	emailOTPStore := services.NewEmailOTPStore(5*time.Minute, cfg.Security.JWTSecret)
+	emailSender := services.SMTPEmailSender{
+		Host:     cfg.Mail.SMTPHost,
+		Port:     cfg.Mail.SMTPPort,
+		Username: cfg.Mail.SMTPUsername,
+		Password: cfg.Mail.SMTPPassword,
+		From:     cfg.Mail.SMTPFrom,
+	}
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
@@ -69,6 +77,8 @@ func main() {
 			Store:     store,
 			JWTSecret: cfg.Security.JWTSecret,
 			JWTTTL:    jwtTTL,
+			EmailOTP:  emailOTPStore,
+			Email:     emailSender,
 		},
 	}))
 	r.POST("/query", middleware.Authorization(store, cfg.Security.JWTSecret), gin.WrapH(srv))

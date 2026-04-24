@@ -22,9 +22,7 @@ export async function POST(request: Request) {
       !body.sellerID ||
       !body.name ||
       !body.description ||
-      typeof body.categoryID !== "number" ||
-      typeof body.price !== "number" ||
-      typeof body.rating !== "number"
+      typeof body.price !== "number"
     ) {
       return NextResponse.json({ message: "Missing required product fields" }, { status: 400 });
     }
@@ -33,11 +31,11 @@ export async function POST(request: Request) {
       CLOUD_GQL.setProduct,
       {
         sellerID: body.sellerID,
-        categoryID: body.categoryID,
+        categoryID: typeof body.categoryID === "number" ? body.categoryID : undefined,
         name: body.name,
         description: body.description,
         price: body.price,
-        rating: body.rating,
+        rating: typeof body.rating === "number" ? body.rating : undefined,
         tags: body.tags ?? [],
       },
       body.token,

@@ -35,6 +35,14 @@ func GetUserIDFromContext(ctx context.Context) (string, error) {
 	return val, nil
 }
 
+func GetRoleFromContext(ctx context.Context) (string, error) {
+	val, ok := ctx.Value(authRoleKey).(string)
+	if !ok || val == "" {
+		return "", fmt.Errorf("role not found in context")
+	}
+	return val, nil
+}
+
 func GetTokenFromContext(ctx context.Context) (string, error) {
 	val, ok := ctx.Value(authTokenKey).(string)
 	if !ok || val == "" {

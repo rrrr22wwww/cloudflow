@@ -32,10 +32,19 @@ type securityconfig struct {
 	JWTTTL    string
 }
 
+type mailconfig struct {
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUsername string
+	SMTPPassword string
+	SMTPFrom     string
+}
+
 type Config struct {
 	Database *databaseconfig
 	Server   *serverconfig
 	Security *securityconfig
+	Mail     *mailconfig
 }
 
 func loadEnvFile() (*map[string]string, error) {
@@ -86,6 +95,13 @@ func CreateConfig() (*Config, error) {
 		Security: &securityconfig{
 			JWTSecret: (*envs)["JWT_SECRET"],
 			JWTTTL:    (*envs)["JWT_TTL"],
+		},
+		Mail: &mailconfig{
+			SMTPHost:     (*envs)["SMTP_HOST"],
+			SMTPPort:     (*envs)["SMTP_PORT"],
+			SMTPUsername: (*envs)["SMTP_USERNAME"],
+			SMTPPassword: (*envs)["SMTP_PASSWORD"],
+			SMTPFrom:     (*envs)["SMTP_FROM"],
 		},
 	}, nil
 }

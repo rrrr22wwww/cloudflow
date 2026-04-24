@@ -23,12 +23,17 @@ export function formatAgo(value: string) {
 }
 
 export function subtitleFromTags(item: MarketplaceItem) {
-  if (item.tags.length === 0) {
-    return item.category;
+  const specs = [item.cpu, item.ram, item.disk].filter(Boolean);
+  if (specs.length > 0) {
+    return specs.join(" • ");
   }
 
-  return item.tags
-    .slice(0, 2)
-    .map((tag) => tag.replace(":", " · "))
-    .join(" • ");
+  if (item.tags.length > 0) {
+    return item.tags
+      .slice(0, 2)
+      .map((tag) => tag.replace(":", " · "))
+      .join(" • ");
+  }
+
+  return item.category;
 }

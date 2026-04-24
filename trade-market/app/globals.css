@@ -44,9 +44,10 @@ body {
 }
 
 body {
-  @apply bg-background text-foreground;
+  @apply bg-background text-sm text-foreground;
   background-image: radial-gradient(circle, hsl(var(--border) / 0.5) 1px, transparent 1px);
   background-size: 24px 24px;
+  line-height: 1.45;
   text-rendering: optimizeLegibility;
 }
 

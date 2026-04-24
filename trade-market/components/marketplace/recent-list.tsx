@@ -22,7 +22,7 @@ export function RecentPublishedList({ items }: { items: MarketplaceItem[] }) {
         {items.map((item) => (
           <div
             key={`recent-${item.id}`}
-            className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 rounded-md border border-border bg-surface px-3 py-2 text-sm"
+            className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 rounded-md border border-border bg-surface px-3 py-2 text-xs"
           >
             <div className="min-w-0">
               <p className="truncate text-foreground">{item.name}</p>
@@ -31,9 +31,7 @@ export function RecentPublishedList({ items }: { items: MarketplaceItem[] }) {
               </p>
             </div>
             <p className="text-xs text-muted-foreground">{formatAgo(item.createdAt)}</p>
-            <p className="text-xs text-muted-foreground">
-              {item.players}/{item.capacity}
-            </p>
+            <p className="text-xs text-muted-foreground">{item.region || item.os || "Cloud"}</p>
             <p className="font-mono text-foreground">{formatPrice(item.price)}</p>
           </div>
         ))}

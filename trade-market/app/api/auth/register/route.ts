@@ -4,6 +4,7 @@ import {
   type CloudflowAuthPayload,
   CloudflowApiError,
   cloudflowGraphql,
+  isCloudflowAuthPayload,
 } from "@/lib/cloudflow-api";
 
 export async function POST(request: Request) {
@@ -36,7 +37,15 @@ export async function POST(request: Request) {
       },
     );
 
-    return NextResponse.json(payload.data?.register ?? null);
+    const session = payload.data?.register;
+    if (!isCloudflowAuthPayload(session)) {
+      return NextResponse.json(
+        { message: "Registration failed: backend did not return a valid session" },
+        { status: 502 },
+      );
+    }
+
+    return NextResponse.json(session);
   } catch (error) {
     if (error instanceof CloudflowApiError) {
       return NextResponse.json(

@@ -1,27 +1,89 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { ShieldCheck, UserRound, X } from "lucide-react";
+import { FormEvent, useState, type ComponentProps } from "react";
+import { LockKeyhole, Server, UserRound, X } from "lucide-react";
 import { Button, buttonClasses } from "@/components/ui/button";
-import { LabeledInput } from "@/components/ui/labeled-input";
-
-const TOKEN_KEY = "trade_market_cloudflow_token";
-const USER_KEY = "trade_market_cloudflow_user";
-
-type LoginUser = {
-  id: string;
-  name: string;
-  email: string;
-};
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { saveStoredSession, type SessionUser } from "@/lib/auth-session";
 
 type LoginResponse = {
   token: string;
-  user: LoginUser;
+  user: SessionUser;
 };
 
 type AuthMode = "signin" | "signup";
-type SignInStep = "credentials" | "totp";
+type SignInStep = "credentials" | "email-code";
+
+type OtpChallengeResponse = {
+  challengeId: string;
+  email: string;
+  expiresIn: number;
+  delivery: "email" | "dev";
+  devCode?: string;
+};
+
+type AuthFieldProps = {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: ComponentProps<"input">["type"];
+  placeholder?: string;
+  autoComplete?: string;
+  inputMode?: ComponentProps<"input">["inputMode"];
+  maxLength?: number;
+  disabled?: boolean;
+  hint?: string;
+};
+
+function AuthField({
+  id,
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  autoComplete,
+  inputMode,
+  maxLength,
+  disabled,
+  hint,
+}: AuthFieldProps) {
+  return (
+    <Field>
+      <FieldLabel className="font-mono text-[11px] uppercase tracking-wider" htmlFor={id}>
+        {label}
+      </FieldLabel>
+      <Input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        inputMode={inputMode}
+        maxLength={maxLength}
+        disabled={disabled}
+        className="h-9 text-xs"
+      />
+      {hint ? <p className="text-[11px] text-muted-foreground">{hint}</p> : null}
+    </Field>
+  );
+}
 
 function parseError(value: unknown) {
   if (typeof value === "string") {
@@ -43,15 +105,60 @@ function parseError(value: unknown) {
   return "Unknown error";
 }
 
+function isLoginResponse(value: unknown): value is LoginResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const session = value as Partial<LoginResponse>;
+  const user = session.user as Partial<SessionUser> | undefined;
+
+  return (
+    typeof session.token === "string" &&
+    session.token.length > 0 &&
+    typeof user === "object" &&
+    user !== null &&
+    typeof user.id === "string" &&
+    typeof user.name === "string" &&
+    typeof user.email === "string"
+  );
+}
+
+function isOtpChallengeResponse(value: unknown): value is OtpChallengeResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const payload = value as Partial<OtpChallengeResponse>;
+
+  return (
+    typeof payload.challengeId === "string" &&
+    payload.challengeId.length > 0 &&
+    typeof payload.email === "string" &&
+    typeof payload.expiresIn === "number" &&
+    (payload.delivery === "email" || payload.delivery === "dev")
+  );
+}
+
+function readSessionPayload(payload: unknown, fallbackMessage: string) {
+  if (!isLoginResponse(payload)) {
+    throw new Error(parseError(payload) === "Unknown error" ? fallbackMessage : parseError(payload));
+  }
+
+  return payload;
+}
+
 export function AuthModal() {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [mode, setMode] = useState<AuthMode>("signin");
-  const [signInStep, setSignInStep] = useState<SignInStep>("credentials");
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [totp, setTotp] = useState("");
+  const [signInStep, setSignInStep] = useState<SignInStep>("credentials");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpChallengeId, setOtpChallengeId] = useState("");
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otpDevCode, setOtpDevCode] = useState<string | null>(null);
 
   const [signupLogin, setSignupLogin] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
@@ -61,45 +168,22 @@ export function AuthModal() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted || !open) {
-      return;
-    }
-
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [mounted, open]);
-
-  function saveSession(session: LoginResponse) {
-    window.localStorage.setItem(TOKEN_KEY, session.token);
-    window.localStorage.setItem(USER_KEY, JSON.stringify(session.user));
-    window.dispatchEvent(new CustomEvent("cloudflow-auth-updated"));
-  }
-
   function resetTransientState() {
     setError(null);
-    setSignInStep("credentials");
     setPassword("");
-    setTotp("");
+    setSignInStep("credentials");
+    setOtpCode("");
+    setOtpChallengeId("");
+    setOtpEmail("");
+    setOtpDevCode(null);
   }
 
-  function closeModal() {
-    setOpen(false);
-    setMode("signin");
-    resetTransientState();
-  }
-
-  function openModal() {
-    setOpen(true);
-    setMode("signin");
-    resetTransientState();
+  function setDialogOpen(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setMode("signin");
+      resetTransientState();
+    }
   }
 
   function switchMode(nextMode: AuthMode) {
@@ -137,14 +221,17 @@ export function AuthModal() {
         }),
       });
 
-      const payload = (await response.json().catch(() => null)) as LoginResponse | { message?: string } | null;
+      const payload = (await response.json().catch(() => null)) as
+        | LoginResponse
+        | { message?: string }
+        | null;
 
       if (!response.ok) {
         throw new Error(parseError(payload));
       }
 
-      saveSession(payload as LoginResponse);
-      closeModal();
+      saveStoredSession(readSessionPayload(payload, "Registration failed: no valid session returned"));
+      setDialogOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -153,18 +240,47 @@ export function AuthModal() {
   }
 
   async function submitSignIn() {
-    if (signInStep === "credentials") {
-      if (!identifier.trim() || !password.trim()) {
-        setError("Email/Login and password are required");
+    if (signInStep === "email-code") {
+      if (!otpChallengeId || !/^\d{6}$/.test(otpCode.trim())) {
+        setError("Enter the 6-digit code from email");
         return;
       }
+
+      setBusy(true);
       setError(null);
-      setSignInStep("totp");
+
+      try {
+        const response = await fetch("/api/auth/email-otp/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            challengeId: otpChallengeId,
+            code: otpCode.trim(),
+          }),
+        });
+
+        const payload = (await response.json().catch(() => null)) as
+          | LoginResponse
+          | { message?: string }
+          | null;
+
+        if (!response.ok) {
+          throw new Error(parseError(payload));
+        }
+
+        saveStoredSession(readSessionPayload(payload, "2FA verification failed"));
+        setDialogOpen(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "2FA verification failed");
+      } finally {
+        setBusy(false);
+      }
+
       return;
     }
 
-    if (totp.trim() && !/^\d{6}$/.test(totp.trim())) {
-      setError("TOTP code must contain 6 digits");
+    if (!identifier.trim() || !password.trim()) {
+      setError("Email/Login and password are required");
       return;
     }
 
@@ -172,24 +288,34 @@ export function AuthModal() {
     setError(null);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/api/auth/email-otp/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           identifier: identifier.trim(),
           password,
-          totp: totp.trim() || undefined,
         }),
       });
 
-      const payload = (await response.json().catch(() => null)) as LoginResponse | { message?: string } | null;
+      const payload = (await response.json().catch(() => null)) as
+        | OtpChallengeResponse
+        | { message?: string }
+        | null;
 
       if (!response.ok) {
         throw new Error(parseError(payload));
       }
 
-      saveSession(payload as LoginResponse);
-      closeModal();
+      if (!isOtpChallengeResponse(payload)) {
+        throw new Error(parseError(payload) === "Unknown error" ? "Failed to send 2FA code" : parseError(payload));
+      }
+
+      setOtpChallengeId(payload.challengeId);
+      setOtpEmail(payload.email);
+      setOtpDevCode(payload.devCode ?? null);
+      setOtpCode("");
+      setPassword("");
+      setSignInStep("email-code");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -208,191 +334,207 @@ export function AuthModal() {
     await submitSignIn();
   }
 
-  const modeButtons: Array<{ key: AuthMode; label: string }> = [
-    { key: "signin", label: "Sign In" },
-    { key: "signup", label: "Sign Up" },
-  ];
+  return (
+    <Dialog open={open} onOpenChange={setDialogOpen}>
+      <DialogTrigger
+        className={buttonClasses({
+          variant: "primary",
+          size: "sm",
+          className: "gap-1.5",
+        })}
+        onClick={() => {
+          setMode("signin");
+          resetTransientState();
+        }}
+      >
+        <UserRound data-icon="inline-start" className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">Open Market</span>
+      </DialogTrigger>
 
-  const modal = open ? (
-    <div
-      className="fixed inset-0 z-[90] grid place-items-center bg-black/70 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Authentication dialog"
-    >
-      <div className="w-full max-w-md rounded-xl border border-border bg-surface-raised p-5 shadow-2xl shadow-black/40">
-        <div className="mb-4 flex items-start justify-between gap-2">
-          <div>
-            <p className="section-kicker">Authentication</p>
-            <h2 className="mt-1 font-mono text-xl uppercase tracking-wider text-foreground">
-              {mode === "signin" ? "Sign In" : "Sign Up"}
-            </h2>
+      <DialogContent className="max-w-[460px] overflow-hidden p-0">
+        <div className="relative border-b border-border/70 bg-[linear-gradient(135deg,hsl(var(--surface-overlay)/0.95),hsl(var(--surface-raised))_58%,hsl(var(--brand-muted)/0.55))] px-5 py-4">
+          <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:radial-gradient(circle,hsl(var(--border))_1px,transparent_1px)] [background-size:18px_18px]" />
+          <div className="relative flex items-start justify-between gap-3">
+            <DialogHeader className="mb-0">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="grid size-7 place-items-center rounded-md border border-brand/40 bg-brand-muted text-brand">
+                  {mode === "signin" ? (
+                    <LockKeyhole className="size-3.5" />
+                  ) : (
+                    <Server className="size-3.5" />
+                  )}
+                </span>
+                <DialogDescription>CloudFlow Account</DialogDescription>
+              </div>
+              <DialogTitle className="text-sm">
+                {mode === "signin" ? "Sign in to marketplace" : "Create trading account"}
+              </DialogTitle>
+              <p className="max-w-sm text-xs text-muted-foreground">
+                {mode === "signin"
+                  ? "Use your email or login to rent and publish server listings."
+                  : "Registration returns a JWT, so you will be signed in immediately."}
+              </p>
+            </DialogHeader>
+            <DialogClose
+              className={buttonClasses({
+                variant: "ghost",
+                size: "sm",
+                className: "h-7 w-7 px-0",
+              })}
+              aria-label="Close modal"
+            >
+              <X className="h-4 w-4" />
+            </DialogClose>
           </div>
-          <Button type="button" size="sm" variant="ghost" onClick={closeModal} aria-label="Close modal">
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
-        <form className="space-y-3" onSubmit={onSubmit}>
-          <div className="grid grid-cols-2 gap-2">
-            {modeButtons.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => switchMode(item.key)}
-                className={buttonClasses({
-                  variant: mode === item.key ? "primary" : "secondary",
-                  size: "sm",
-                })}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+        <div className="px-5 py-4">
+          <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+            <Tabs value={mode} onValueChange={(value) => switchMode(value as AuthMode)}>
+              <TabsList className="w-full">
+                <TabsTrigger value="signin">Sign In</TabsTrigger>
+                <TabsTrigger value="signup">Register</TabsTrigger>
+              </TabsList>
 
-          {mode === "signup" ? (
-            <>
-              <LabeledInput
-                id="signup-login"
-                label="Login"
-                value={signupLogin}
-                onChange={setSignupLogin}
-                placeholder="your-login"
-                autoComplete="username"
-              />
-              <LabeledInput
-                id="signup-email"
-                label="Email"
-                value={signupEmail}
-                onChange={setSignupEmail}
-                type="email"
-                placeholder="name@example.com"
-                autoComplete="email"
-              />
-              <LabeledInput
-                id="signup-password"
-                label="Password"
-                value={signupPassword}
-                onChange={setSignupPassword}
-                type="password"
-                autoComplete="new-password"
-              />
-              <LabeledInput
-                id="signup-password-repeat"
-                label="Repeat Password"
-                value={signupRepeatPassword}
-                onChange={setSignupRepeatPassword}
-                type="password"
-                autoComplete="new-password"
-              />
-            </>
-          ) : signInStep === "credentials" ? (
-            <>
-              <LabeledInput
-                id="auth-identifier"
-                label="Email / Login"
-                value={identifier}
-                onChange={setIdentifier}
-                placeholder="name@example.com or login"
-                autoComplete="username"
-              />
-              <LabeledInput
-                id="auth-password"
-                label="Password"
-                value={password}
-                onChange={setPassword}
-                type="password"
-                autoComplete="current-password"
-              />
-            </>
-          ) : (
-            <>
-              <div className="rounded-md border border-border bg-surface px-3 py-2 text-xs text-muted-foreground">
-                Signing in as: <span className="font-mono text-foreground">{identifier}</span>
-              </div>
-              <label className="grid gap-1.5 text-sm text-muted-foreground" htmlFor="auth-totp">
-                TOTP (2FA)
-                <div className="relative">
-                  <ShieldCheck className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    id="auth-totp"
-                    value={totp}
-                    onChange={(event) => setTotp(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="123456"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    className="h-10 w-full rounded-md border border-border bg-surface pl-8 pr-3 font-mono text-sm text-foreground outline-none transition-colors focus:border-brand/40"
+              <TabsContent value="signin" className="pt-1">
+                {signInStep === "credentials" ? (
+                  <FieldGroup>
+                    <AuthField
+                      id="auth-identifier"
+                      label="Email / Login"
+                      value={identifier}
+                      onChange={setIdentifier}
+                      placeholder="name@example.com or login"
+                      autoComplete="username"
+                    />
+                    <AuthField
+                      id="auth-password"
+                      label="Password"
+                      value={password}
+                      onChange={setPassword}
+                      type="password"
+                      autoComplete="current-password"
+                      hint="We will email a 6-digit code after the password is verified."
+                    />
+                  </FieldGroup>
+                ) : (
+                  <FieldGroup>
+                    <Alert>
+                      <AlertDescription>
+                        We sent a 6-digit sign-in code to {otpEmail}. It expires in 5 minutes.
+                      </AlertDescription>
+                    </Alert>
+                    {otpDevCode ? (
+                      <Alert>
+                        <AlertDescription>Dev email code: {otpDevCode}</AlertDescription>
+                      </Alert>
+                    ) : null}
+                    <AuthField
+                      id="auth-email-code"
+                      label="Email 2FA Code"
+                      value={otpCode}
+                      onChange={(value) => setOtpCode(value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="000000"
+                      autoComplete="one-time-code"
+                      inputMode="numeric"
+                      maxLength={6}
+                    />
+                  </FieldGroup>
+                )}
+              </TabsContent>
+
+              <TabsContent value="signup" className="pt-1">
+                <FieldGroup>
+                  <AuthField
+                    id="signup-login"
+                    label="Login"
+                    value={signupLogin}
+                    onChange={setSignupLogin}
+                    placeholder="your-login"
+                    autoComplete="username"
                   />
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  Enter 6-digit code from your authenticator app (if 2FA is enabled).
-                </span>
-              </label>
-            </>
-          )}
+                  <AuthField
+                    id="signup-email"
+                    label="Email"
+                    value={signupEmail}
+                    onChange={setSignupEmail}
+                    type="email"
+                    placeholder="name@example.com"
+                    autoComplete="email"
+                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <AuthField
+                      id="signup-password"
+                      label="Password"
+                      value={signupPassword}
+                      onChange={setSignupPassword}
+                      type="password"
+                      autoComplete="new-password"
+                    />
+                    <AuthField
+                      id="signup-password-repeat"
+                      label="Repeat"
+                      value={signupRepeatPassword}
+                      onChange={setSignupRepeatPassword}
+                      type="password"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </FieldGroup>
+              </TabsContent>
+            </Tabs>
 
-          {error ? (
-            <p className="rounded-md border border-loss/40 bg-loss-muted px-2.5 py-2 text-xs text-loss">{error}</p>
-          ) : null}
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
 
-          <div className="flex items-center justify-end gap-2 pt-1">
-            {mode === "signup" ? (
-              <>
-                <Button type="button" variant="secondary" onClick={closeModal} disabled={busy}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={busy}>
-                  {busy ? "Creating..." : "Create Account"}
-                </Button>
-              </>
-            ) : signInStep === "credentials" ? (
-              <>
-                <Button type="button" variant="secondary" onClick={closeModal} disabled={busy}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={busy}>
-                  Continue
-                </Button>
-              </>
-            ) : (
-              <>
+            <Separator />
+
+            <DialogFooter className="pt-0">
+              {mode === "signin" && signInStep === "email-code" ? (
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="ghost"
                   onClick={() => {
                     setSignInStep("credentials");
+                    setOtpCode("");
+                    setOtpChallengeId("");
+                    setOtpEmail("");
+                    setOtpDevCode(null);
                     setError(null);
                   }}
                   disabled={busy}
                 >
                   Back
                 </Button>
-                <Button type="submit" disabled={busy}>
-                  {busy ? "Signing In..." : "Sign In"}
-                </Button>
-              </>
-            )}
-          </div>
-        </form>
-      </div>
-    </div>
-  ) : null;
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={openModal}
-        className={buttonClasses({
-          variant: "primary",
-          size: "sm",
-          className: "gap-1.5",
-        })}
-      >
-        <UserRound className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Open Market</span>
-      </button>
-      {mounted ? createPortal(modal, document.body) : null}
-    </>
+              ) : null}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setDialogOpen(false)}
+                disabled={busy}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy}>
+                {mode === "signup"
+                  ? busy
+                    ? "Creating..."
+                    : "Create Account"
+                  : signInStep === "email-code"
+                    ? busy
+                      ? "Verifying..."
+                      : "Verify Code"
+                    : busy
+                      ? "Sending Code..."
+                      : "Send Code"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
