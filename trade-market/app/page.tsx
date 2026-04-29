@@ -36,8 +36,7 @@ export default function HomePage() {
           Marketplace For Server Sales
         </h1>
         <p className="mt-4 max-w-2xl text-sm text-muted-foreground md:text-base">
-          UI оставлен в том же стиле, но логика теперь соответствует только
-          доступным backend операциям из `apps/API_SHORT.md`.
+          Test.//.]\
         </p>
         <div className="mt-7 flex flex-wrap gap-3">
           <Link
