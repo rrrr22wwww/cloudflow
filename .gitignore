@@ -1,15 +1,38 @@
+# Environment / secrets
 .env
 .env.*
-*.env
-# Default ignored files
-/shelf/
-/workspace.xml
-# Editor-based HTTP Client requests
-/httpRequests/
-# Datasource local storage ignored files
-/dataSources/
-/dataSources.local.xml
-/var
-node_modules/
+!.env.example
+
+# Personal files
+Резюме_*.docx
+plan_junior_2026.pdf
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editors
+.idea/
+.vscode/
+.zed/
+*.iml
+
+# AI assistant configs
+.opencode/
+CLAUDE.md
+AGENTS.md
+
+# Build artifacts
 dist/
 *.tsbuildinfo
+node_modules/
+apps/server
+apps/cloudflow
+
+# Local data
+/var/
+*.log
+
+# Runtime upload artifacts (user content, not source)
+trade-market/public/uploads/**
+!trade-market/public/uploads/**/.gitkeep

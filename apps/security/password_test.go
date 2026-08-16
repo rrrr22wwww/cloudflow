@@ -1,37 +1,77 @@
 package security
 
 import (
-	"fmt"
+	"strings"
 	"testing"
 )
 
-var password string = "131asdasa"
+func TestHashAndVerify(t *testing.T) {
+	hasher := NewPasswordHasher()
 
-func TestGenerate(t *testing.T) {
-
-	hash := GuardHash{
-		Hasher: NewHashPassword(),
-	}
-	l, err := hash.HashFromDB(password)
+	hash, err := hasher.Hash("correct horse battery staple")
 	if err != nil {
-		panic(fmt.Errorf("Generation Hash: %w", err))
+		t.Fatalf("Hash returned error: %v", err)
 	}
-	fmt.Println(l)
+
+	if !strings.HasPrefix(hash, "argon2id$") {
+		t.Fatalf("hash has unexpected format: %s", hash)
+	}
+
+	ok, err := Verify(hash, "correct horse battery staple")
+	if err != nil {
+		t.Fatalf("Verify returned error: %v", err)
+	}
+	if !ok {
+		t.Fatal("Verify returned false for the correct password")
+	}
 }
 
-func TestVerify(t *testing.T) {
-	hash := GuardHash{
-		Hasher: NewHashPassword(),
-	}
-	b64Hash, err := hash.HashFromDB(password)
+func TestVerifyRejectsWrongPassword(t *testing.T) {
+	hasher := NewPasswordHasher()
 
+	hash, err := hasher.Hash("password-one")
 	if err != nil {
-		panic(fmt.Errorf("Generation Hash: %w", err))
+		t.Fatalf("Hash returned error: %v", err)
 	}
-	ok, err := Verify(b64Hash, password)
+
+	ok, err := Verify(hash, "password-two")
+	if err != nil {
+		t.Fatalf("Verify returned error: %v", err)
+	}
 	if ok {
-		fmt.Printf("Verify: simular password - OK\n")
-	} else {
-		fmt.Printf("Verify: different password - ERR\n")
+		t.Fatal("Verify returned true for a wrong password")
+	}
+}
+
+func TestHashesAreSalted(t *testing.T) {
+	hasher := NewPasswordHasher()
+
+	h1, err := hasher.Hash("same-password")
+	if err != nil {
+		t.Fatalf("Hash returned error: %v", err)
+	}
+	h2, err := hasher.Hash("same-password")
+	if err != nil {
+		t.Fatalf("Hash returned error: %v", err)
+	}
+
+	if h1 == h2 {
+		t.Fatal("two hashes of the same password are identical: salt is not random")
+	}
+}
+
+func TestVerifyRejectsMalformedHash(t *testing.T) {
+	cases := []string{
+		"",
+		"not-a-hash",
+		"argon2id$abc$3$4$c2FsdA==$aGFzaA==", // non-numeric memory
+		"argon2id$65536$3$4$%%%$aGFzaA==",    // invalid base64 salt
+		"md5$1$1$1$c2FsdA==$aGFzaA==",        // wrong algorithm
+	}
+
+	for _, c := range cases {
+		if ok, err := Verify(c, "whatever"); err == nil || ok {
+			t.Errorf("Verify(%q) = (%v, %v); want error and false", c, ok, err)
+		}
 	}
 }

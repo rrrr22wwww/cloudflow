@@ -1,13 +1,21 @@
 services:
   postgres:
-    image: postgres:latest
-    container_name: postgres-db
-    restart: always
+    image: postgres:16-alpine
+    container_name: cloudflow-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: "${DATABASE_USER}"
       POSTGRES_PASSWORD: "${DATABASE_PASSWORD}"
       POSTGRES_DB: "${DATABASE_NAME}"
     ports:
-      - "5404:5432"
+      - "${DATABASE_PORT:-5432}:5432"
     volumes:
-      - ./var/lib/postgresql:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_data:

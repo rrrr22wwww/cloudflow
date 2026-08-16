@@ -9,9 +9,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rrrr22wwww.com/cloudflow/graph/model"
-	"github.com/rrrr22wwww.com/cloudflow/internal/database"
-	"github.com/rrrr22wwww.com/cloudflow/internal/services"
+	"github.com/rrrr22wwww/cloudflow/graph/model"
+	"github.com/rrrr22wwww/cloudflow/internal/database"
+	"github.com/rrrr22wwww/cloudflow/internal/services"
 )
 
 // Login is the resolver for the login field.
@@ -105,7 +105,7 @@ func (r *mutationResolver) SetUser(ctx context.Context, id *string, name *string
 		balance = nil
 	}
 
-	user, err := database.UpdateUser(r.DB, ctx, targetID, name, email, imgUser, role, rating, balance)
+	user, err := database.UpdateUser(ctx, r.DB, targetID, name, email, imgUser, role, rating, balance)
 	if err != nil {
 		return nil, fmt.Errorf("set user: %w", err)
 	}
@@ -124,7 +124,7 @@ func (r *mutationResolver) DeleteUser(ctx context.Context, id string) (bool, err
 		return false, fmt.Errorf("delete user: insufficient permissions")
 	}
 
-	ok, err := database.DeleteUser(r.DB, ctx, id)
+	ok, err := database.DeleteUser(ctx, r.DB, id)
 	if err != nil {
 		return false, fmt.Errorf("delete user: %w", err)
 	}
@@ -151,9 +151,9 @@ func (r *mutationResolver) SetProduct(ctx context.Context, sellerID string, cate
 
 	product := &model.Product{}
 	err = database.CreateProduct(
+		ctx,
 		r.DB,
 		product,
-		ctx,
 		resolvedSellerID,
 		name,
 		description,
@@ -170,7 +170,7 @@ func (r *mutationResolver) SetProduct(ctx context.Context, sellerID string, cate
 
 // UpdateProduct is the resolver for the updateProduct field.
 func (r *mutationResolver) UpdateProduct(ctx context.Context, id string, categoryID *int32, name *string, description *string, price *float64, rating *int32, status *string, tags []*string) (*model.Product, error) {
-	product, err := database.GetProductByID(r.DB, ctx, id)
+	product, err := database.GetProductByID(ctx, r.DB, id)
 	if err != nil {
 		return nil, fmt.Errorf("update product: %w", err)
 	}
@@ -186,8 +186,8 @@ func (r *mutationResolver) UpdateProduct(ctx context.Context, id string, categor
 
 	updateTags := tags != nil
 	updated, err := database.UpdateProduct(
-		r.DB,
 		ctx,
+		r.DB,
 		id,
 		categoryID,
 		name,
@@ -212,7 +212,7 @@ func (r *mutationResolver) TopUpBalance(ctx context.Context, amount float64) (*m
 		return nil, fmt.Errorf("top up balance: %w", err)
 	}
 
-	user, err := database.TopUpUserBalance(r.DB, ctx, userID, amount)
+	user, err := database.TopUpUserBalance(ctx, r.DB, userID, amount)
 	if err != nil {
 		return nil, fmt.Errorf("top up balance: %w", err)
 	}
@@ -227,7 +227,7 @@ func (r *mutationResolver) PurchaseProduct(ctx context.Context, productID string
 		return nil, fmt.Errorf("purchase product: %w", err)
 	}
 
-	order, product, buyer, err := database.PurchaseProduct(r.DB, ctx, userID, productID, rating, comment)
+	order, product, buyer, err := database.PurchaseProduct(ctx, r.DB, userID, productID, rating, comment)
 	if err != nil {
 		return nil, fmt.Errorf("purchase product: %w", err)
 	}
@@ -241,7 +241,7 @@ func (r *mutationResolver) PurchaseProduct(ctx context.Context, productID string
 
 // SetProductAccess is the resolver for the setProductAccess field.
 func (r *mutationResolver) SetProductAccess(ctx context.Context, productID string, ipAddress string, sshUsername string, sshPassword *string, sshPrivateKey *string, port *int32, connectionNotes *string) (*model.ServerAccess, error) {
-	product, err := database.GetProductByID(r.DB, ctx, productID)
+	product, err := database.GetProductByID(ctx, r.DB, productID)
 	if err != nil {
 		return nil, fmt.Errorf("set product access: %w", err)
 	}
@@ -256,8 +256,8 @@ func (r *mutationResolver) SetProductAccess(ctx context.Context, productID strin
 	}
 
 	access, err := database.SetProductAccess(
-		r.DB,
 		ctx,
+		r.DB,
 		productID,
 		ipAddress,
 		sshUsername,
@@ -275,7 +275,7 @@ func (r *mutationResolver) SetProductAccess(ctx context.Context, productID strin
 
 // SetProductPreviewImage is the resolver for the setProductPreviewImage field.
 func (r *mutationResolver) SetProductPreviewImage(ctx context.Context, productID string, fileName string) (*model.Product, error) {
-	product, err := database.GetProductByID(r.DB, ctx, productID)
+	product, err := database.GetProductByID(ctx, r.DB, productID)
 	if err != nil {
 		return nil, fmt.Errorf("set product preview image: %w", err)
 	}
@@ -289,11 +289,11 @@ func (r *mutationResolver) SetProductPreviewImage(ctx context.Context, productID
 		return nil, fmt.Errorf("set product preview image: insufficient permissions")
 	}
 
-	if err := database.SetProductPreviewImage(r.DB, ctx, productID, fileName); err != nil {
+	if err := database.SetProductPreviewImage(ctx, r.DB, productID, fileName); err != nil {
 		return nil, fmt.Errorf("set product preview image: %w", err)
 	}
 
-	updated, err := database.GetProductByID(r.DB, ctx, productID)
+	updated, err := database.GetProductByID(ctx, r.DB, productID)
 	if err != nil {
 		return nil, fmt.Errorf("set product preview image: %w", err)
 	}
@@ -303,7 +303,7 @@ func (r *mutationResolver) SetProductPreviewImage(ctx context.Context, productID
 
 // DeleteProduct is the resolver for the deleteProduct field.
 func (r *mutationResolver) DeleteProduct(ctx context.Context, id string) (bool, error) {
-	product, err := database.GetProductByID(r.DB, ctx, id)
+	product, err := database.GetProductByID(ctx, r.DB, id)
 	if err != nil {
 		return false, fmt.Errorf("delete product: %w", err)
 	}
@@ -317,7 +317,7 @@ func (r *mutationResolver) DeleteProduct(ctx context.Context, id string) (bool, 
 		return false, fmt.Errorf("delete product: insufficient permissions")
 	}
 
-	ok, err := database.DeleteProduct(r.DB, ctx, id)
+	ok, err := database.DeleteProduct(ctx, r.DB, id)
 	if err != nil {
 		return false, fmt.Errorf("delete product: %w", err)
 	}
@@ -331,7 +331,7 @@ func (r *mutationResolver) SetCategory(ctx context.Context, name string, parentI
 	}
 
 	category := &model.Category{}
-	err := database.CreateCategory(r.DB, ctx, category, name, parentID)
+	err := database.CreateCategory(ctx, r.DB, category, name, parentID)
 	if err != nil {
 		return nil, fmt.Errorf("set category: %w", err)
 	}
@@ -344,7 +344,7 @@ func (r *mutationResolver) UpdateCategory(ctx context.Context, id int32, name *s
 		return nil, fmt.Errorf("update category: insufficient permissions")
 	}
 
-	category, err := database.UpdateCategory(r.DB, ctx, id, name, parentID)
+	category, err := database.UpdateCategory(ctx, r.DB, id, name, parentID)
 	if err != nil {
 		return nil, fmt.Errorf("update category: %w", err)
 	}
@@ -357,7 +357,7 @@ func (r *mutationResolver) DeleteCategory(ctx context.Context, id int32) (bool, 
 		return false, fmt.Errorf("delete category: insufficient permissions")
 	}
 
-	ok, err := database.DeleteCategory(r.DB, ctx, id)
+	ok, err := database.DeleteCategory(ctx, r.DB, id)
 	if err != nil {
 		return false, fmt.Errorf("delete category: %w", err)
 	}
@@ -371,7 +371,7 @@ func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 		return nil, fmt.Errorf("me: %w", err)
 	}
 
-	users, err := database.GetUsers(r.DB, ctx, nil, nil, &userID)
+	users, err := database.GetUsers(ctx, r.DB, nil, nil, &userID)
 	if err != nil {
 		return nil, fmt.Errorf("me: %w", err)
 	}
@@ -384,7 +384,7 @@ func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 
 // GetUsers is the resolver for the getUsers field.
 func (r *queryResolver) GetUsers(ctx context.Context, name *string, email *string, id *string) ([]*model.User, error) {
-	users, err := database.GetUsers(r.DB, ctx, name, email, id)
+	users, err := database.GetUsers(ctx, r.DB, name, email, id)
 	if err != nil {
 		return nil, fmt.Errorf("get users: %w", err)
 	}
@@ -393,7 +393,7 @@ func (r *queryResolver) GetUsers(ctx context.Context, name *string, email *strin
 
 // GetProducts is the resolver for the getProducts field.
 func (r *queryResolver) GetProducts(ctx context.Context, name *string, id *string, sellerID *string) ([]*model.Product, error) {
-	products, err := database.GetProducts(r.DB, ctx, name, id, sellerID)
+	products, err := database.GetProducts(ctx, r.DB, name, id, sellerID)
 	if err != nil {
 		return nil, fmt.Errorf("get products: %w", err)
 	}
@@ -415,7 +415,7 @@ func (r *queryResolver) GetOrders(ctx context.Context, buyerID *string, status *
 		targetBuyerID = buyerID
 	}
 
-	orders, err := database.GetOrders(r.DB, ctx, targetBuyerID, status)
+	orders, err := database.GetOrders(ctx, r.DB, targetBuyerID, status)
 	if err != nil {
 		return nil, fmt.Errorf("get orders: %w", err)
 	}
@@ -437,7 +437,7 @@ func (r *queryResolver) GetPurchasedProducts(ctx context.Context, buyerID *strin
 		targetBuyerID = *buyerID
 	}
 
-	products, err := database.GetPurchasedProducts(r.DB, ctx, targetBuyerID)
+	products, err := database.GetPurchasedProducts(ctx, r.DB, targetBuyerID)
 	if err != nil {
 		return nil, fmt.Errorf("get purchased products: %w", err)
 	}
@@ -447,7 +447,7 @@ func (r *queryResolver) GetPurchasedProducts(ctx context.Context, buyerID *strin
 
 // GetProductAccess is the resolver for the getProductAccess field.
 func (r *queryResolver) GetProductAccess(ctx context.Context, productID string) (*model.ServerAccess, error) {
-	product, err := database.GetProductByID(r.DB, ctx, productID)
+	product, err := database.GetProductByID(ctx, r.DB, productID)
 	if err != nil {
 		return nil, fmt.Errorf("get product access: %w", err)
 	}
@@ -458,7 +458,7 @@ func (r *queryResolver) GetProductAccess(ctx context.Context, productID string) 
 	}
 
 	if product.SellerID != currentUserID {
-		purchased, err := database.UserPurchasedProduct(r.DB, ctx, currentUserID, productID)
+		purchased, err := database.UserPurchasedProduct(ctx, r.DB, currentUserID, productID)
 		if err != nil {
 			return nil, fmt.Errorf("get product access: %w", err)
 		}
@@ -467,7 +467,7 @@ func (r *queryResolver) GetProductAccess(ctx context.Context, productID string) 
 		}
 	}
 
-	access, err := database.GetProductAccess(r.DB, ctx, productID)
+	access, err := database.GetProductAccess(ctx, r.DB, productID)
 	if err != nil {
 		return nil, fmt.Errorf("get product access: %w", err)
 	}
@@ -487,7 +487,7 @@ func (r *queryResolver) GetSellerReviews(ctx context.Context, sellerID *string) 
 		targetSellerID = *sellerID
 	}
 
-	reviews, err := database.GetSellerReviews(r.DB, ctx, targetSellerID)
+	reviews, err := database.GetSellerReviews(ctx, r.DB, targetSellerID)
 	if err != nil {
 		return nil, fmt.Errorf("get seller reviews: %w", err)
 	}
@@ -497,7 +497,7 @@ func (r *queryResolver) GetSellerReviews(ctx context.Context, sellerID *string) 
 
 // GetCategories is the resolver for the getCategories field.
 func (r *queryResolver) GetCategories(ctx context.Context) ([]*model.Category, error) {
-	categories, err := database.GetCategories(r.DB, ctx)
+	categories, err := database.GetCategories(ctx, r.DB)
 	if err != nil {
 		return nil, fmt.Errorf("get categories: %w", err)
 	}

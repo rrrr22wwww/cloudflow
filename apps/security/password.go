@@ -1,3 +1,9 @@
+// Package security implements password hashing with Argon2id (RFC 9106).
+//
+// Hashes are stored in a self-describing format so that parameters can be
+// tuned later without breaking existing hashes:
+//
+//	argon2id$<memory>$<iterations>$<parallelism>$<base64(salt)>$<base64(hash)>
 package security
 
 import (
@@ -5,16 +11,13 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
 )
 
-type GuardHash struct {
-	Hasher *PasswordHasher
-	Buffer []byte
-}
-
+// PasswordHasher holds Argon2id parameters.
 type PasswordHasher struct {
 	memory      uint32
 	iterations  uint32
@@ -23,11 +26,22 @@ type PasswordHasher struct {
 	keyLength   uint32
 }
 
-func NewHashPassword(opts ...func(p *PasswordHasher)) *PasswordHasher {
+// Option configures a PasswordHasher.
+type Option func(*PasswordHasher)
+
+func WithMemory(kib uint32) Option { return func(h *PasswordHasher) { h.memory = kib } }
+func WithIterations(n uint32) Option { return func(h *PasswordHasher) { h.iterations = n } }
+func WithParallelism(n uint8) Option { return func(h *PasswordHasher) { h.parallelism = n } }
+func WithSaltLength(n uint32) Option { return func(h *PasswordHasher) { h.saltLength = n } }
+func WithKeyLength(n uint32) Option { return func(h *PasswordHasher) { h.keyLength = n } }
+
+// NewPasswordHasher returns a hasher with sane defaults
+// (64 MiB memory, 3 iterations, 4 lanes — in line with OWASP recommendations).
+func NewPasswordHasher(opts ...Option) *PasswordHasher {
 	h := &PasswordHasher{
 		memory:      64 * 1024,
 		iterations:  3,
-		parallelism: 6,
+		parallelism: 4,
 		saltLength:  16,
 		keyLength:   32,
 	}
@@ -36,77 +50,66 @@ func NewHashPassword(opts ...func(p *PasswordHasher)) *PasswordHasher {
 	}
 	return h
 }
-func newMemory(std uint32) func(h *PasswordHasher) {
-	return func(h *PasswordHasher) { h.memory = std }
-}
-func newIterations(std uint32) func(h *PasswordHasher) {
-	return func(h *PasswordHasher) { h.iterations = std }
-}
-func newParallelism(std uint8) func(h *PasswordHasher) {
-	return func(h *PasswordHasher) { h.parallelism = std }
-}
-func newSaltLength(std uint32) func(h *PasswordHasher) {
-	return func(h *PasswordHasher) { h.saltLength = std }
-}
-func newKeyLength(std uint32) func(h *PasswordHasher) {
-	return func(h *PasswordHasher) { h.keyLength = std }
 
-}
-func (h *GuardHash) HashFromDB(pass string) (string, error) {
-	hash, err := h.Generate(pass)
-	if err != nil {
-		return "", fmt.Errorf("ErrorGenHash: %w", err)
-	}
-	storedHash := fmt.Sprintf("%s$%d$%d$%d$%s$%s",
-		"argon2id",
-		h.Hasher.memory,
-		h.Hasher.iterations,
-		h.Hasher.parallelism,
-		base64.StdEncoding.EncodeToString(h.Buffer),
-		base64.StdEncoding.EncodeToString(hash))
-	return storedHash, nil
-}
-
-// (password []byte, salt []byte, time uint32, memory uint32, threads uint8, keyLen uint32) []byte
-func (h *GuardHash) Generate(pass string) ([]byte, error) {
-	password := []byte(pass)
-	salt := make([]byte, h.Hasher.saltLength)
-
+// Hash derives an Argon2id hash of the password with a fresh random salt
+// and returns it in the storable string format described above.
+func (h *PasswordHasher) Hash(password string) (string, error) {
+	salt := make([]byte, h.saltLength)
 	if _, err := rand.Read(salt); err != nil {
-		return nil, fmt.Errorf("generate salt: %w", err)
+		return "", fmt.Errorf("generate salt: %w", err)
 	}
-	hash := argon2.IDKey(password, salt, h.Hasher.iterations, h.Hasher.memory, h.Hasher.parallelism, h.Hasher.keyLength)
-	h.Buffer = salt
-	return hash, nil
+
+	hash := argon2.IDKey([]byte(password), salt, h.iterations, h.memory, h.parallelism, h.keyLength)
+
+	encoded := fmt.Sprintf("argon2id$%d$%d$%d$%s$%s",
+		h.memory,
+		h.iterations,
+		h.parallelism,
+		base64.StdEncoding.EncodeToString(salt),
+		base64.StdEncoding.EncodeToString(hash),
+	)
+	return encoded, nil
 }
 
-func fastAtoi(s string) *uint32 {
-	var res uint32
-	for i := 0; i < len(s); i++ {
-		res = res*10 + uint32(s[i]-'0')
+// Verify reports whether password matches the stored hash.
+// The comparison is constant-time to avoid timing attacks.
+func Verify(stored string, password string) (bool, error) {
+	parts := strings.Split(stored, "$")
+	if len(parts) != 6 || parts[0] != "argon2id" {
+		return false, fmt.Errorf("verify: malformed hash format")
 	}
-	return &res
-}
 
-func Verify(hash string, password string) (bool, error) {
-	parts := strings.Split(hash, "$")
-	if len(parts) < 6 {
-		return false, fmt.Errorf("Verify: error hash decoding element(field < 6) ")
-	}
-	storedHash, err := base64.StdEncoding.DecodeString(parts[5])
-	salt, err := base64.StdEncoding.DecodeString(parts[4])
-	unit := GuardHash{
-		Hasher: NewHashPassword(
-			newMemory(*fastAtoi(parts[1])),
-			newIterations(*fastAtoi(parts[2])),
-			newParallelism(uint8(*fastAtoi(parts[3]))),
-		),
-	}
-	computedHash := argon2.IDKey([]byte(password), salt, unit.Hasher.iterations, unit.Hasher.memory, unit.Hasher.parallelism, unit.Hasher.keyLength)
-
+	memory, err := parseUint32(parts[1])
 	if err != nil {
-		return false, fmt.Errorf("error base64decodeString: %w", err)
+		return false, fmt.Errorf("verify: parse memory: %w", err)
 	}
-	ok := subtle.ConstantTimeCompare(storedHash, computedHash) == 1
-	return ok, nil
+	iterations, err := parseUint32(parts[2])
+	if err != nil {
+		return false, fmt.Errorf("verify: parse iterations: %w", err)
+	}
+	parallelism, err := strconv.ParseUint(parts[3], 10, 8)
+	if err != nil {
+		return false, fmt.Errorf("verify: parse parallelism: %w", err)
+	}
+
+	salt, err := base64.StdEncoding.DecodeString(parts[4])
+	if err != nil {
+		return false, fmt.Errorf("verify: decode salt: %w", err)
+	}
+	expected, err := base64.StdEncoding.DecodeString(parts[5])
+	if err != nil {
+		return false, fmt.Errorf("verify: decode hash: %w", err)
+	}
+
+	computed := argon2.IDKey([]byte(password), salt, iterations, memory, uint8(parallelism), uint32(len(expected)))
+
+	return subtle.ConstantTimeCompare(expected, computed) == 1, nil
+}
+
+func parseUint32(s string) (uint32, error) {
+	v, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return 0, err
+	}
+	return uint32(v), nil
 }

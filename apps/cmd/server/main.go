@@ -10,12 +10,12 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/rrrr22wwww.com/cloudflow/graph"
-	"github.com/rrrr22wwww.com/cloudflow/internal/config"
-	"github.com/rrrr22wwww.com/cloudflow/internal/database"
-	"github.com/rrrr22wwww.com/cloudflow/internal/logger"
-	"github.com/rrrr22wwww.com/cloudflow/internal/middleware"
-	"github.com/rrrr22wwww.com/cloudflow/internal/services"
+	"github.com/rrrr22wwww/cloudflow/graph"
+	"github.com/rrrr22wwww/cloudflow/internal/config"
+	"github.com/rrrr22wwww/cloudflow/internal/database"
+	"github.com/rrrr22wwww/cloudflow/internal/logger"
+	"github.com/rrrr22wwww/cloudflow/internal/middleware"
+	"github.com/rrrr22wwww/cloudflow/internal/services"
 )
 
 //go:embed static/auth-test.html
@@ -28,32 +28,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger, claenup, err := logger.Setup(cfg)
+	log, cleanup, err := logger.Setup(cfg)
 	if err != nil {
-		slog.Error("Failed to load logger", "error", err)
+		slog.Error("Failed to set up logger", "error", err)
 		os.Exit(1)
 	}
-	defer claenup()
-	slog.SetDefault(logger)
+	defer cleanup()
+	slog.SetDefault(log)
 
 	db, err := database.Connect(cfg)
 	if err != nil {
-		panic(err)
+		slog.Error("Failed to connect to database", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
-	jwtTTL := 24 * time.Hour
-	if cfg.Security.JWTTTL != "" {
-		parsedTTL, err := time.ParseDuration(cfg.Security.JWTTTL)
-		if err != nil {
-			slog.Error("Failed to parse JWT TTL", "error", err)
-			os.Exit(1)
-		}
-		jwtTTL = parsedTTL
-	}
-
-	if cfg.Security.JWTSecret == "" {
-		slog.Error("JWT_SECRET is empty")
+	jwtTTL, err := time.ParseDuration(cfg.Security.JWTTTL)
+	if err != nil {
+		slog.Error("Failed to parse JWT_TTL", "error", err)
 		os.Exit(1)
 	}
 
@@ -81,37 +73,27 @@ func main() {
 			Email:     emailSender,
 		},
 	}))
+
 	r.POST("/query", middleware.Authorization(store, cfg.Security.JWTSecret), gin.WrapH(srv))
 	r.GET("/public/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "public api stub"})
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+	r.GET("/healthz", func(c *gin.Context) {
+		if err := db.Ping(); err != nil {
+			c.JSON(503, gin.H{"status": "degraded", "error": "database unreachable"})
+			return
+		}
+		c.JSON(200, gin.H{"status": "ok"})
 	})
 	r.GET("/auth-test", func(c *gin.Context) {
 		c.Data(200, "text/html; charset=utf-8", authTestPage)
 	})
 	r.GET("/", gin.WrapH(playground.Handler("GraphQL", "/query")))
-	// r.GET("/ping", func(c *gin.Context) {
-	// 	c.JSON(200, gin.H{"msg": "hi"})
-	// })
-	r.Run(":8080")
+
+	addr := cfg.Server.Host + ":" + cfg.Server.Port
+	slog.Info("Server starting", "addr", addr)
+	if err := r.Run(addr); err != nil {
+		slog.Error("Server stopped", "error", err)
+		os.Exit(1)
+	}
 }
-
-// stats := db.Stats()
-// fmt.Printf("OpenConnections: %d\n", stats.OpenConnections)
-// fmt.Printf("InUse: %d\n", stats.InUse)
-// fmt.Printf("Idle: %d\n", stats.Idle)
-// var version, dbname string
-// db.QueryRow("SELECT version(), current_database()").Scan(&version, &dbname)
-// fmt.Printf("Database: %s\n", dbname)
-// fmt.Printf("Version: %s\n", version)
-// rows, err := db.Query(`
-// 	    SELECT name
-// 	    FROM users
-
-// `)
-// if err != nil {
-// 	fmt.Println("No rows were returned %w", err)
-
-// }
-// if !rows.Next() {
-// 	fmt.Println("No rows were returned")
-// }

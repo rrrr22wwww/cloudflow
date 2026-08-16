@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/patrickmn/go-cache"
-	"github.com/rrrr22wwww.com/cloudflow/internal/database"
+	"github.com/rrrr22wwww/cloudflow/internal/database"
 )
 
 type MemorySessionStore struct {
@@ -34,7 +34,7 @@ func (m *MemorySessionStore) Get(ctx context.Context, token string) (*Session, e
 		}
 	}
 
-	userID, role, expiresAt, err := database.GetUserSessionByToken(m.db, ctx, token)
+	userID, role, expiresAt, err := database.GetUserSessionByToken(ctx, m.db, token)
 	if err != nil {
 		return nil, fmt.Errorf("session not found: %w", err)
 	}
@@ -56,7 +56,7 @@ func (m *MemorySessionStore) Get(ctx context.Context, token string) (*Session, e
 func (m *MemorySessionStore) Set(ctx context.Context, token string, session *Session, ttl time.Duration) error {
 	m.cache.Set(token, session, ttl)
 
-	err := database.CreateUserSession(m.db, ctx, session.UserID, token, session.ExpiresAt)
+	err := database.CreateUserSession(ctx, m.db, session.UserID, token, session.ExpiresAt)
 	if err != nil {
 		m.cache.Delete(token)
 		return fmt.Errorf("persist session: %w", err)
@@ -68,7 +68,7 @@ func (m *MemorySessionStore) Set(ctx context.Context, token string, session *Ses
 func (m *MemorySessionStore) Delete(ctx context.Context, token string) error {
 	m.cache.Delete(token)
 
-	_, err := database.DeleteUserSessionByToken(m.db, ctx, token)
+	_, err := database.DeleteUserSessionByToken(ctx, m.db, token)
 	if err != nil {
 		return fmt.Errorf("delete session: %w", err)
 	}

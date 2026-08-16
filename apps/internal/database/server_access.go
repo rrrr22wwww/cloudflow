@@ -5,36 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/rrrr22wwww.com/cloudflow/graph/model"
+	"github.com/rrrr22wwww/cloudflow/graph/model"
 )
 
-func ensureServerAccessTable(r *sql.DB, ctx context.Context) error {
-	_, err := r.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS server_access (
-			product_id UUID PRIMARY KEY,
-			ip_address VARCHAR(128) NOT NULL,
-			ssh_username VARCHAR(100) NOT NULL,
-			ssh_password TEXT,
-			ssh_private_key TEXT,
-			port INTEGER DEFAULT 22,
-			connection_notes TEXT,
-			created_at TIMESTAMPTZ DEFAULT NOW(),
-			updated_at TIMESTAMPTZ DEFAULT NOW(),
-			FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-		)
-	`)
-	if err != nil {
-		return fmt.Errorf("failed to ensure server_access table: %w", err)
-	}
-
-	return nil
-}
-
+// SetProductAccess creates or replaces the connection details for a
+// product. Authorization (seller or moderator only) is enforced by the
+// resolver layer.
 func SetProductAccess(
-	r *sql.DB,
 	ctx context.Context,
+	db *sql.DB,
 	productID string,
 	ipAddress string,
 	sshUsername string,
@@ -43,12 +23,8 @@ func SetProductAccess(
 	port *int32,
 	connectionNotes *string,
 ) (*model.ServerAccess, error) {
-	if err := ensureServerAccessTable(r, ctx); err != nil {
-		return nil, err
-	}
-
 	access := &model.ServerAccess{}
-	row := r.QueryRowContext(ctx, `
+	row := db.QueryRowContext(ctx, `
 		INSERT INTO server_access (
 			product_id,
 			ip_address,
@@ -77,13 +53,12 @@ func SetProductAccess(
 	return access, nil
 }
 
-func GetProductAccess(r *sql.DB, ctx context.Context, productID string) (*model.ServerAccess, error) {
-	if err := ensureServerAccessTable(r, ctx); err != nil {
-		return nil, err
-	}
-
+// GetProductAccess returns the connection details for a product.
+// Authorization (buyer of the product or moderator) is enforced by the
+// resolver layer.
+func GetProductAccess(ctx context.Context, db *sql.DB, productID string) (*model.ServerAccess, error) {
 	access := &model.ServerAccess{}
-	row := r.QueryRowContext(ctx, `
+	row := db.QueryRowContext(ctx, `
 		SELECT product_id, ip_address, ssh_username, ssh_password, ssh_private_key, port, connection_notes, created_at, updated_at
 		FROM server_access
 		WHERE product_id = $1
@@ -91,7 +66,7 @@ func GetProductAccess(r *sql.DB, ctx context.Context, productID string) (*model.
 
 	if err := scanServerAccessRow(row, access); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("server access not found")
+			return nil, fmt.Errorf("server access: %w", ErrNotFound)
 		}
 		return nil, fmt.Errorf("failed to get server access: %w", err)
 	}
@@ -99,9 +74,11 @@ func GetProductAccess(r *sql.DB, ctx context.Context, productID string) (*model.
 	return access, nil
 }
 
-func UserPurchasedProduct(r *sql.DB, ctx context.Context, userID string, productID string) (bool, error) {
+// UserPurchasedProduct reports whether the user has a successfully paid
+// order (status 200) containing the product.
+func UserPurchasedProduct(ctx context.Context, db *sql.DB, userID string, productID string) (bool, error) {
 	var exists bool
-	err := r.QueryRowContext(ctx, `
+	err := db.QueryRowContext(ctx, `
 		SELECT EXISTS (
 			SELECT 1
 			FROM order_items oi
@@ -148,9 +125,4 @@ func scanServerAccessRow(scanner rowScanner, access *model.ServerAccess) error {
 	access.CreatedAt = nullTimePtr(createdAt)
 	access.UpdatedAt = nullTimePtr(updatedAt)
 	return nil
-}
-
-func formatTimePtr(value time.Time) *string {
-	text := value.UTC().Format(time.RFC3339)
-	return &text
 }
