@@ -7,16 +7,17 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rrrr22wwww.com/cloudflow/graph/model"
+	"github.com/rrrr22wwww/cloudflow/graph/model"
 )
 
-func TopUpUserBalance(r *sql.DB, ctx context.Context, userID string, amount float64) (*model.User, error) {
+// TopUpUserBalance atomically adds a positive amount to the user's balance.
+func TopUpUserBalance(ctx context.Context, db *sql.DB, userID string, amount float64) (*model.User, error) {
 	if amount <= 0 {
 		return nil, fmt.Errorf("amount must be greater than zero")
 	}
 
 	user := &model.User{}
-	row := r.QueryRowContext(ctx,
+	row := db.QueryRowContext(ctx,
 		`UPDATE users
 		 SET balance = COALESCE(balance, 0) + $2,
 		     updated_at = NOW()
@@ -27,7 +28,7 @@ func TopUpUserBalance(r *sql.DB, ctx context.Context, userID string, amount floa
 
 	if err := scanUserRow(row, user); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("user not found")
+			return nil, fmt.Errorf("user: %w", ErrNotFound)
 		}
 		return nil, fmt.Errorf("failed to top up balance: %w", err)
 	}
@@ -35,20 +36,11 @@ func TopUpUserBalance(r *sql.DB, ctx context.Context, userID string, amount floa
 	return user, nil
 }
 
-func GetPurchasedProducts(r *sql.DB, ctx context.Context, buyerID string) ([]*model.Product, error) {
-	hasTagsColumn, err := productsHaveTagsColumn(r, ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to inspect products schema: %w", err)
-	}
-	useJoinTags := false
-	if !hasTagsColumn {
-		useJoinTags, err = productTagsJoinAvailable(r, ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to inspect product tags schema: %w", err)
-		}
-	}
-
-	query := `SELECT p.id, p.seller_id, p.category_id, p.name, p.description, p.price, p.rating, p.status, p.created_at, p.updated_at
+// GetPurchasedProducts returns products the buyer has successfully paid
+// for (order status 200), newest first.
+func GetPurchasedProducts(ctx context.Context, db *sql.DB, buyerID string) ([]*model.Product, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT p.id, p.seller_id, p.category_id, p.name, p.description, p.price, p.rating, p.status, p.created_at, p.updated_at
 		FROM products p
 		WHERE EXISTS (
 			SELECT 1
@@ -58,22 +50,8 @@ func GetPurchasedProducts(r *sql.DB, ctx context.Context, buyerID string) ([]*mo
 			  AND o.buyer_id = $1
 			  AND o.status = 200
 		)
-		ORDER BY p.updated_at DESC`
-	if hasTagsColumn {
-		query = `SELECT p.id, p.seller_id, p.category_id, p.name, p.description, p.price, p.rating, p.status, p.tags, p.created_at, p.updated_at
-			FROM products p
-			WHERE EXISTS (
-				SELECT 1
-				FROM order_items oi
-				JOIN orders o ON o.id = oi.order_id
-				WHERE oi.product_id = p.id
-				  AND o.buyer_id = $1
-				  AND o.status = 200
-			)
-			ORDER BY p.updated_at DESC`
-	}
-
-	rows, err := r.QueryContext(ctx, query, buyerID)
+		ORDER BY p.updated_at DESC
+	`, buyerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get purchased products: %w", err)
 	}
@@ -82,46 +60,52 @@ func GetPurchasedProducts(r *sql.DB, ctx context.Context, buyerID string) ([]*mo
 	products := make([]*model.Product, 0)
 	for rows.Next() {
 		product := &model.Product{}
-		if err := scanProductRow(rows, product, hasTagsColumn); err != nil {
+		if err := scanProductRow(rows, product); err != nil {
 			return nil, fmt.Errorf("failed to scan purchased product: %w", err)
 		}
-		if useJoinTags {
-			tags, err := loadProductTags(r, ctx, product.ID)
-			if err != nil {
-				return nil, err
-			}
-			product.Tags = stringSliceToPointers(tags)
-		}
-		if err := populateProductPreviewImage(r, ctx, product); err != nil {
+		products = append(products, product)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate purchased products: %w", err)
+	}
+
+	for _, product := range products {
+		if err := attachProductExtras(ctx, db, product); err != nil {
 			return nil, err
 		}
-		products = append(products, product)
 	}
 
 	return products, nil
 }
 
+// PurchaseProduct performs the whole purchase in one transaction:
+//
+//  1. lock buyer and product rows (SELECT ... FOR UPDATE) so concurrent
+//     purchases cannot double-spend the balance or sell one server twice;
+//  2. validate: not own product, product active, sufficient balance;
+//  3. create the order (status 200) and its order item;
+//  4. move money from buyer to seller;
+//  5. record the buyer's review and refresh the seller's rating;
+//  6. mark the product inactive (a server is sold exactly once).
+//
+// Any failure rolls the whole purchase back.
 func PurchaseProduct(
-	r *sql.DB,
 	ctx context.Context,
+	db *sql.DB,
 	buyerID string,
 	productID string,
 	rating *int32,
 	comment *string,
 ) (*model.Order, *model.Product, *model.User, error) {
-	hasTagsColumn, err := productsHaveTagsColumn(r, ctx)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to inspect products schema: %w", err)
-	}
-	useJoinTags := false
-	if !hasTagsColumn {
-		useJoinTags, err = productTagsJoinAvailable(r, ctx)
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("failed to inspect product tags schema: %w", err)
+	reviewRating := int32(5)
+	if rating != nil {
+		if *rating < 1 || *rating > 5 {
+			return nil, nil, nil, fmt.Errorf("rating must be between 1 and 5")
 		}
+		reviewRating = *rating
 	}
 
-	tx, err := r.BeginTx(ctx, &sql.TxOptions{})
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to begin purchase transaction: %w", err)
 	}
@@ -137,43 +121,24 @@ func PurchaseProduct(
 	)
 	if err := scanUserRow(buyerRow, buyer); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil, nil, fmt.Errorf("buyer not found")
+			return nil, nil, nil, fmt.Errorf("buyer: %w", ErrNotFound)
 		}
 		return nil, nil, nil, fmt.Errorf("failed to load buyer: %w", err)
 	}
 
 	product := &model.Product{}
-	var productRow *sql.Row
-	if hasTagsColumn {
-		productRow = tx.QueryRowContext(ctx,
-			`SELECT id, seller_id, category_id, name, description, price, rating, status, tags, created_at, updated_at
-			 FROM products
-			 WHERE id = $1
-			 FOR UPDATE`,
-			productID,
-		)
-	} else {
-		productRow = tx.QueryRowContext(ctx,
-			`SELECT id, seller_id, category_id, name, description, price, rating, status, created_at, updated_at
-			 FROM products
-			 WHERE id = $1
-			 FOR UPDATE`,
-			productID,
-		)
-	}
-
-	if err := scanProductRow(productRow, product, hasTagsColumn); err != nil {
+	productRow := tx.QueryRowContext(ctx,
+		`SELECT id, seller_id, category_id, name, description, price, rating, status, created_at, updated_at
+		 FROM products
+		 WHERE id = $1
+		 FOR UPDATE`,
+		productID,
+	)
+	if err := scanProductRow(productRow, product); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil, nil, fmt.Errorf("product not found")
+			return nil, nil, nil, fmt.Errorf("product: %w", ErrNotFound)
 		}
 		return nil, nil, nil, fmt.Errorf("failed to load product: %w", err)
-	}
-	if useJoinTags {
-		tags, err := loadProductTags(tx, ctx, product.ID)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		product.Tags = stringSliceToPointers(tags)
 	}
 
 	if product.SellerID == buyerID {
@@ -234,19 +199,10 @@ func PurchaseProduct(
 		return nil, nil, nil, fmt.Errorf("failed to update seller balance: %w", err)
 	}
 
-	trimmedComment := normalizeOptionalComment(comment)
-	reviewRating := int32(5)
-	if rating != nil {
-		if *rating < 1 || *rating > 5 {
-			return nil, nil, nil, fmt.Errorf("rating must be between 1 and 5")
-		}
-		reviewRating = *rating
-	}
-
-	if err := UpsertSellerReview(tx, ctx, product.SellerID, buyerID, product.ID, reviewRating, trimmedComment); err != nil {
+	if err := UpsertSellerReview(ctx, tx, product.SellerID, buyerID, product.ID, reviewRating, normalizeOptionalComment(comment)); err != nil {
 		return nil, nil, nil, err
 	}
-	if err := RefreshSellerRating(tx, ctx, product.SellerID); err != nil {
+	if err := RefreshSellerRating(ctx, tx, product.SellerID); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -264,13 +220,16 @@ func PurchaseProduct(
 		return nil, nil, nil, fmt.Errorf("failed to commit purchase: %w", err)
 	}
 
-	updatedProduct, err := GetProductByID(r, ctx, product.ID)
+	updatedProduct, err := GetProductByID(ctx, db, product.ID)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to reload purchased product: %w", err)
 	}
 
 	return order, updatedProduct, updatedBuyer, nil
 }
+
+// normalizeOptionalComment trims the comment and converts empty strings
+// to nil.
 func normalizeOptionalComment(comment *string) *string {
 	if comment == nil {
 		return nil

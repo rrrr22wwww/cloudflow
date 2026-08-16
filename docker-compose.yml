@@ -1,0 +1,81 @@
+# Full stack: PostgreSQL + migrations + Go API + Next.js frontend.
+#
+#   cp .env.example .env   # fill in DATABASE_PASSWORD and JWT_SECRET
+#   docker compose up --build
+#
+# Frontend: http://localhost:3000   API + playground: http://localhost:8080
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cloudflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: "${DATABASE_USER}"
+      POSTGRES_PASSWORD: "${DATABASE_PASSWORD}"
+      POSTGRES_DB: "${DATABASE_NAME}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/Dockerfile
+      target: migrate
+    container_name: cloudflow-migrate
+    environment:
+      GOOSE_DBSTRING: "host=postgres port=5432 user=${DATABASE_USER} password=${DATABASE_PASSWORD} dbname=${DATABASE_NAME} sslmode=disable"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/Dockerfile
+      target: server
+    container_name: cloudflow-api
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: "${DATABASE_NAME}"
+      DATABASE_USER: "${DATABASE_USER}"
+      DATABASE_PASSWORD: "${DATABASE_PASSWORD}"
+      DATABASE_SSLMODE: disable
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: "8080"
+      LOG_TYPE: "${LOG_TYPE:-prod}"
+      JWT_SECRET: "${JWT_SECRET}"
+      JWT_TTL: "${JWT_TTL:-24h}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-}"
+      SMTP_USERNAME: "${SMTP_USERNAME:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./trade-market
+    container_name: cloudflow-frontend
+    environment:
+      CLOUDFLOW_API_URL: http://api:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

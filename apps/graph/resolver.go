@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/rrrr22wwww.com/cloudflow/internal/services"
+	"github.com/rrrr22wwww/cloudflow/internal/services"
 )
 
 type Resolver struct {
