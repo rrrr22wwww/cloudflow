@@ -2,37 +2,39 @@ package config
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
-// Конфигурация бд
-type databaseconfig struct {
-	Name     string
+// DatabaseConfig holds PostgreSQL connection settings.
+type DatabaseConfig struct {
+	Host     string
 	Port     string
-	Password string
+	Name     string
 	User     string
+	Password string
+	SSLMode  string
 }
 
-// Конгифигурация для запуска сервера
-type serverconfig struct {
-	Flog  string // prod || dev
-	Llog  string // info || debug || warn || error
-	Host  string
-	Port  string
-	Lpath string
+// ServerConfig holds HTTP server and logging settings.
+type ServerConfig struct {
+	Host    string
+	Port    string
+	LogType string // "prod" | "dev"
+	LogPath string
 }
 
-// Для тестировки, замена - KMS (значения для генерация секретов)
-type securityconfig struct {
+// SecurityConfig holds JWT settings.
+// In production these values should come from a secret manager, not a file.
+type SecurityConfig struct {
 	JWTSecret string
 	JWTTTL    string
 }
 
-type mailconfig struct {
+// MailConfig holds SMTP settings for the email OTP flow.
+type MailConfig struct {
 	SMTPHost     string
 	SMTPPort     string
 	SMTPUsername string
@@ -41,67 +43,126 @@ type mailconfig struct {
 }
 
 type Config struct {
-	Database *databaseconfig
-	Server   *serverconfig
-	Security *securityconfig
-	Mail     *mailconfig
+	Database *DatabaseConfig
+	Server   *ServerConfig
+	Security *SecurityConfig
+	Mail     *MailConfig
 }
 
-func loadEnvFile() (*map[string]string, error) {
-	dir, err := os.Getwd()
-	dir = "/Users/root1/Desktop/cloudflow/.env.development"
-	if err != nil {
-		log.Fatal("The directory cannot be determined")
-	}
-	f, err := os.Open(dir)
-	if err != nil {
+// CreateConfig builds the application config.
+//
+// Resolution order (highest priority first):
+//  1. Real environment variables (works in Docker / CI / production).
+//  2. An optional env file: the path from CLOUDFLOW_ENV_FILE, or the first
+//     of ".env", ".env.development" found in the working directory or its parent.
+//
+// Values from the env file never override variables already set in the
+// environment.
+func CreateConfig() (*Config, error) {
+	if err := loadEnvFile(); err != nil {
 		return nil, err
 	}
+
+	cfg := &Config{
+		Database: &DatabaseConfig{
+			Host:     getEnv("DATABASE_HOST", "localhost"),
+			Port:     getEnv("DATABASE_PORT", "5432"),
+			Name:     os.Getenv("DATABASE_NAME"),
+			User:     os.Getenv("DATABASE_USER"),
+			Password: os.Getenv("DATABASE_PASSWORD"),
+			SSLMode:  getEnv("DATABASE_SSLMODE", "disable"),
+		},
+		Server: &ServerConfig{
+			Host:    getEnv("SERVER_HOST", "0.0.0.0"),
+			Port:    getEnv("SERVER_PORT", "8080"),
+			LogType: getEnv("LOG_TYPE", "dev"),
+			LogPath: os.Getenv("LOG_PATH"),
+		},
+		Security: &SecurityConfig{
+			JWTSecret: os.Getenv("JWT_SECRET"),
+			JWTTTL:    getEnv("JWT_TTL", "24h"),
+		},
+		Mail: &MailConfig{
+			SMTPHost:     os.Getenv("SMTP_HOST"),
+			SMTPPort:     os.Getenv("SMTP_PORT"),
+			SMTPUsername: os.Getenv("SMTP_USERNAME"),
+			SMTPPassword: os.Getenv("SMTP_PASSWORD"),
+			SMTPFrom:     os.Getenv("SMTP_FROM"),
+		},
+	}
+
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+func (c *Config) validate() error {
+	var missing []string
+	if c.Database.Name == "" {
+		missing = append(missing, "DATABASE_NAME")
+	}
+	if c.Database.User == "" {
+		missing = append(missing, "DATABASE_USER")
+	}
+	if c.Database.Password == "" {
+		missing = append(missing, "DATABASE_PASSWORD")
+	}
+	if c.Security.JWTSecret == "" {
+		missing = append(missing, "JWT_SECRET")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required environment variables: %s (see .env.example)", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// loadEnvFile loads KEY=VALUE pairs from an env file into the process
+// environment without overriding already-set variables. Missing file is
+// not an error: in Docker/CI all values come from the real environment.
+func loadEnvFile() error {
+	path := os.Getenv("CLOUDFLOW_ENV_FILE")
+	if path == "" {
+		for _, candidate := range []string{".env", ".env.development", "../.env", "../.env.development"} {
+			if _, err := os.Stat(candidate); err == nil {
+				path = candidate
+				break
+			}
+		}
+	}
+	if path == "" {
+		return nil
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open env file %s: %w", filepath.Clean(path), err)
+	}
 	defer f.Close()
+
 	scanner := bufio.NewScanner(f)
-	envs := make(map[string]string)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		var parts []string = strings.SplitN(line, "=", 2)
+		parts := strings.SplitN(line, "=", 2)
 		if len(parts) != 2 {
-			return nil, errors.New("invalid environment variable format")
+			return fmt.Errorf("invalid line in env file %s: %q", path, line)
 		}
-		envs[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		key := strings.TrimSpace(parts[0])
+		value := strings.Trim(strings.TrimSpace(parts[1]), `"'`)
+		if _, exists := os.LookupEnv(key); !exists {
+			os.Setenv(key, value)
+		}
 	}
-	return &envs, scanner.Err()
-}
-
-func CreateConfig() (*Config, error) {
-	envs, err := loadEnvFile()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load env file: %w", err)
-	}
-	return &Config{
-		Database: &databaseconfig{
-			Name:     (*envs)["DATABASE_NAME"],
-			Port:     (*envs)["DATABASE_PORT"],
-			Password: (*envs)["DATABASE_PASSWORD"],
-			User:     (*envs)["DATABASE_USER"],
-		},
-		Server: &serverconfig{
-			Flog:  (*envs)["LOG_TYPE"],
-			Host:  (*envs)["SERVER_HOST"],
-			Port:  (*envs)["SERVER_PORT"],
-			Lpath: (*envs)["LOG_PATH"],
-		},
-		Security: &securityconfig{
-			JWTSecret: (*envs)["JWT_SECRET"],
-			JWTTTL:    (*envs)["JWT_TTL"],
-		},
-		Mail: &mailconfig{
-			SMTPHost:     (*envs)["SMTP_HOST"],
-			SMTPPort:     (*envs)["SMTP_PORT"],
-			SMTPUsername: (*envs)["SMTP_USERNAME"],
-			SMTPPassword: (*envs)["SMTP_PASSWORD"],
-			SMTPFrom:     (*envs)["SMTP_FROM"],
-		},
-	}, nil
+	return scanner.Err()
 }

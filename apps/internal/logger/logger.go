@@ -2,37 +2,46 @@ package logger
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 
-	"github.com/rrrr22wwww.com/cloudflow/internal/config"
+	"github.com/rrrr22wwww/cloudflow/internal/config"
 )
 
-func Setup(env *config.Config) (*slog.Logger, func(), error) {
+// Setup builds the application logger.
+//
+//   - LOG_TYPE=dev  → human-readable text logs to stdout, debug level.
+//   - LOG_TYPE=prod → JSON logs (warn level) to LOG_PATH if set,
+//     otherwise to stdout (the common case for containers).
+//
+// The returned cleanup function closes the log file if one was opened.
+func Setup(cfg *config.Config) (*slog.Logger, func(), error) {
+	cleanup := func() {}
 
-	f, err := os.OpenFile(
-		env.Server.Lpath,
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-		0644,
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed os.OpenFile: %w", err)
-	}
-
-	var handler slog.Handler
-
-	switch env.Server.Flog {
-	case "prod":
-		handler = slog.NewJSONHandler(f, &slog.HandlerOptions{
-			Level: slog.LevelWarn,
-		})
+	switch cfg.Server.LogType {
 	case "dev":
-		handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
 		})
+		return slog.New(handler), cleanup, nil
+
+	case "prod":
+		var out io.Writer = os.Stdout
+		if cfg.Server.LogPath != "" {
+			f, err := os.OpenFile(cfg.Server.LogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+			if err != nil {
+				return nil, nil, fmt.Errorf("open log file: %w", err)
+			}
+			out = f
+			cleanup = func() { f.Close() }
+		}
+		handler := slog.NewJSONHandler(out, &slog.HandlerOptions{
+			Level: slog.LevelWarn,
+		})
+		return slog.New(handler), cleanup, nil
+
 	default:
-		return nil, nil, fmt.Errorf("invalid log format: %s", env.Server.Flog)
+		return nil, nil, fmt.Errorf("invalid LOG_TYPE %q: expected \"dev\" or \"prod\"", cfg.Server.LogType)
 	}
-	close := func() { f.Close() }
-	return slog.New(handler), close, nil
 }

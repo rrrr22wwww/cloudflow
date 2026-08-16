@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/rrrr22wwww.com/cloudflow/internal/services"
+	"github.com/rrrr22wwww/cloudflow/internal/services"
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/parser"
 )

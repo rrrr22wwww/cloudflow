@@ -16,12 +16,12 @@ type User struct {
 }
 
 const (
-	MAX_LENGHT_NAME = 30
-	MIN_LENGHT_NAME = 2
+	maxNameLength = 30
+	minNameLength = 2
 )
 
-func CreatUser(ID uuid.UUID, Name string, Role string, Rating float64, Balance int64, CreatedAt time.Time) (*User, error) {
-	if len(Name) > MAX_LENGHT_NAME || len(Name) < MIN_LENGHT_NAME {
+func NewUser(ID uuid.UUID, Name string, Role string, Rating float64, Balance int64, CreatedAt time.Time) (*User, error) {
+	if len(Name) > maxNameLength || len(Name) < minNameLength {
 		return nil, ErrCurrentName
 	}
 	return &User{

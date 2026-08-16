@@ -1,4 +1,4 @@
-module github.com/rrrr22wwww.com/cloudflow
+module github.com/rrrr22wwww/cloudflow
 
 go 1.25.0
 

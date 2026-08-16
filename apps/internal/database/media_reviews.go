@@ -6,15 +6,17 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/rrrr22wwww.com/cloudflow/graph/model"
+	"github.com/rrrr22wwww/cloudflow/graph/model"
 )
 
-func populateProductPreviewImage(r *sql.DB, ctx context.Context, product *model.Product) error {
+// populateProductPreviewImage sets product.PreviewImage from the images
+// table; a product without a preview keeps nil.
+func populateProductPreviewImage(ctx context.Context, db *sql.DB, product *model.Product) error {
 	if product == nil {
 		return nil
 	}
 
-	image, err := GetProductPreviewImage(r, ctx, product.ID)
+	image, err := GetProductPreviewImage(ctx, db, product.ID)
 	if err != nil {
 		return err
 	}
@@ -22,30 +24,9 @@ func populateProductPreviewImage(r *sql.DB, ctx context.Context, product *model.
 	return nil
 }
 
-func ensureImagesTable(r *sql.DB, ctx context.Context) error {
-	_, err := r.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS images (
-			id UUID PRIMARY KEY,
-			target_id UUID,
-			file_name VARCHAR(255) NOT NULL,
-			is_preview BOOLEAN DEFAULT FALSE,
-			sorted_order INTEGER DEFAULT 0,
-			created_at TIMESTAMPTZ DEFAULT NOW(),
-			FOREIGN KEY (target_id) REFERENCES products(id) ON DELETE CASCADE
-		)
-	`)
-	if err != nil {
-		return fmt.Errorf("failed to ensure images table: %w", err)
-	}
-	return nil
-}
-
-func SetProductPreviewImage(r *sql.DB, ctx context.Context, productID string, fileName string) error {
-	if err := ensureImagesTable(r, ctx); err != nil {
-		return err
-	}
-
-	tx, err := r.BeginTx(ctx, &sql.TxOptions{})
+// SetProductPreviewImage replaces the product's preview image reference.
+func SetProductPreviewImage(ctx context.Context, db *sql.DB, productID string, fileName string) error {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin image transaction: %w", err)
 	}
@@ -69,13 +50,11 @@ func SetProductPreviewImage(r *sql.DB, ctx context.Context, productID string, fi
 	return nil
 }
 
-func GetProductPreviewImage(r *sql.DB, ctx context.Context, productID string) (*string, error) {
-	if err := ensureImagesTable(r, ctx); err != nil {
-		return nil, err
-	}
-
+// GetProductPreviewImage returns the preview file name, or nil when the
+// product has no preview image.
+func GetProductPreviewImage(ctx context.Context, db *sql.DB, productID string) (*string, error) {
 	var fileName sql.NullString
-	err := r.QueryRowContext(ctx, `
+	err := db.QueryRowContext(ctx, `
 		SELECT file_name
 		FROM images
 		WHERE target_id = $1 AND is_preview = TRUE
@@ -92,52 +71,10 @@ func GetProductPreviewImage(r *sql.DB, ctx context.Context, productID string) (*
 	return nullStringPtr(fileName), nil
 }
 
-func ensureSellerReviewsTable(r *sql.DB, ctx context.Context) error {
-	_, err := r.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS seller_reviews (
-			id SERIAL PRIMARY KEY,
-			seller_id UUID NOT NULL,
-			buyer_id UUID NOT NULL,
-			product_id UUID NOT NULL,
-			rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-			comment TEXT,
-			created_at TIMESTAMPTZ DEFAULT NOW(),
-			updated_at TIMESTAMPTZ DEFAULT NOW(),
-			FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE,
-			FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE,
-			FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-			UNIQUE (seller_id, buyer_id, product_id)
-		)
-	`)
-	if err != nil {
-		return fmt.Errorf("failed to ensure seller_reviews table: %w", err)
-	}
-	return nil
-}
-
-func UpsertSellerReview(r dbRunner, ctx context.Context, sellerID, buyerID, productID string, rating int32, comment *string) error {
-	if sqlDB, ok := r.(*sql.DB); ok {
-		if err := ensureSellerReviewsTable(sqlDB, ctx); err != nil {
-			return err
-		}
-	}
-
-	if tx, ok := r.(*sql.Tx); ok {
-		_, err := tx.ExecContext(ctx, `
-			INSERT INTO seller_reviews (seller_id, buyer_id, product_id, rating, comment)
-			VALUES ($1, $2, $3, $4, $5)
-			ON CONFLICT (seller_id, buyer_id, product_id) DO UPDATE
-			SET rating = EXCLUDED.rating,
-			    comment = EXCLUDED.comment,
-			    updated_at = NOW()
-		`, sellerID, buyerID, productID, rating, comment)
-		if err != nil {
-			return fmt.Errorf("failed to upsert seller review: %w", err)
-		}
-		return nil
-	}
-
-	_, err := r.ExecContext(ctx, `
+// UpsertSellerReview creates or updates a buyer's review for a specific
+// product of a seller (one review per buyer/product pair).
+func UpsertSellerReview(ctx context.Context, q dbRunner, sellerID, buyerID, productID string, rating int32, comment *string) error {
+	_, err := q.ExecContext(ctx, `
 		INSERT INTO seller_reviews (seller_id, buyer_id, product_id, rating, comment)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (seller_id, buyer_id, product_id) DO UPDATE
@@ -151,8 +88,10 @@ func UpsertSellerReview(r dbRunner, ctx context.Context, sellerID, buyerID, prod
 	return nil
 }
 
-func RefreshSellerRating(r dbRunner, ctx context.Context, sellerID string) error {
-	_, err := r.ExecContext(ctx, `
+// RefreshSellerRating recomputes users.rating as the rounded average of
+// the seller's reviews.
+func RefreshSellerRating(ctx context.Context, q dbRunner, sellerID string) error {
+	_, err := q.ExecContext(ctx, `
 		UPDATE users
 		SET rating = COALESCE((
 			SELECT ROUND(AVG(sr.rating))::INTEGER
@@ -168,12 +107,9 @@ func RefreshSellerRating(r dbRunner, ctx context.Context, sellerID string) error
 	return nil
 }
 
-func GetSellerReviews(r *sql.DB, ctx context.Context, sellerID string) ([]*model.SellerReview, error) {
-	if err := ensureSellerReviewsTable(r, ctx); err != nil {
-		return nil, err
-	}
-
-	rows, err := r.QueryContext(ctx, `
+// GetSellerReviews returns all reviews for a seller, newest first.
+func GetSellerReviews(ctx context.Context, db *sql.DB, sellerID string) ([]*model.SellerReview, error) {
+	rows, err := db.QueryContext(ctx, `
 		SELECT id, seller_id, buyer_id, product_id, rating, comment, created_at, updated_at
 		FROM seller_reviews
 		WHERE seller_id = $1
@@ -184,7 +120,7 @@ func GetSellerReviews(r *sql.DB, ctx context.Context, sellerID string) ([]*model
 	}
 	defer rows.Close()
 
-	reviews := make([]*model.SellerReview, 0)
+	reviews := []*model.SellerReview{}
 	for rows.Next() {
 		review := &model.SellerReview{}
 		var comment sql.NullString
@@ -206,6 +142,9 @@ func GetSellerReviews(r *sql.DB, ctx context.Context, sellerID string) ([]*model
 		review.CreatedAt = nullTimePtr(createdAt)
 		review.UpdatedAt = nullTimePtr(updatedAt)
 		reviews = append(reviews, review)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate seller reviews: %w", err)
 	}
 
 	return reviews, nil
