@@ -5,7 +5,6 @@ A cloud server marketplace: sellers list servers, buyers purchase access and rec
 > **Why this project?** I wanted to go beyond CRUD and implement the parts that are usually hidden behind libraries: password hashing (Argon2id from `x/crypto`), JWT issuance and validation, revocable sessions, a two-factor email login flow, and role-based access control — all hand-written to understand how they actually work.
 
 ## Features
-generated in beautiful mermaid
 - **Authentication** — registration and login with Argon2id password hashing, JWT access tokens backed by a server-side session store (so logout actually revokes the token).
 - **Email OTP 2FA** — optional second factor: `requestEmailLoginCode` verifies the password and emails a 6-digit code, `verifyEmailLoginCode` exchanges it for a JWT.
 - **Role-based authorization** — `User`, `Seller`, `Moderator`, `Creator` roles enforced in resolvers; the auth middleware parses the GraphQL document to allow only whitelisted public mutations without a token.
@@ -14,7 +13,7 @@ generated in beautiful mermaid
 - **Frontend** — Next.js 15 (App Router, React 19) with API routes acting as a BFF layer over the GraphQL API, Zustand for state, Tailwind for styling.
 
 ## Architecture
-
+generated scheme in beautiful mermaid
 ```
 ┌─────────────────┐     REST (BFF)      ┌──────────────────┐
 │   Next.js 15    │ ──────────────────► │  Next API routes │
