@@ -5,7 +5,7 @@ A cloud server marketplace: sellers list servers, buyers purchase access and rec
 > **Why this project?** I wanted to go beyond CRUD and implement the parts that are usually hidden behind libraries: password hashing (Argon2id from `x/crypto`), JWT issuance and validation, revocable sessions, a two-factor email login flow, and role-based access control — all hand-written to understand how they actually work.
 
 ## Features
-
+generated in beautiful mermaid
 - **Authentication** — registration and login with Argon2id password hashing, JWT access tokens backed by a server-side session store (so logout actually revokes the token).
 - **Email OTP 2FA** — optional second factor: `requestEmailLoginCode` verifies the password and emails a 6-digit code, `verifyEmailLoginCode` exchanges it for a JWT.
 - **Role-based authorization** — `User`, `Seller`, `Moderator`, `Creator` roles enforced in resolvers; the auth middleware parses the GraphQL document to allow only whitelisted public mutations without a token.
@@ -160,11 +160,6 @@ On Windows the scripts work in Git Bash; the race detector is enabled automatica
 - **BFF pattern on the frontend** — the browser talks only to Next.js API routes; the GraphQL endpoint and tokens never need to be exposed directly to the client bundle.
 - **Login timing equalization** — when the email is unknown, the password is still verified against a decoy Argon2id hash, so "unknown email" and "wrong password" take the same time and return the same error; registered emails can't be enumerated by timing.
 - **Schema owned by migrations only** — the data layer never creates or inspects tables at runtime; multi-step writes (purchase, product + tags, preview image) run in transactions with row locks where money is involved.
-
-## Roadmap
-
-Refresh tokens, Google OAuth, TOTP 2FA, rate limiting — details in [docs/ROADMAP.md](docs/ROADMAP.md).
-
 
 ## License
 
